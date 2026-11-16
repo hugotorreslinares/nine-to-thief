@@ -60,7 +60,7 @@ export function parseEntry(body: unknown): Entry | string {
 
 type Command = readonly (string | number)[]
 
-async function redis(commands: readonly Command[]): Promise<unknown[]> {
+export async function redis(commands: readonly Command[]): Promise<unknown[]> {
   const url = process.env.KV_REST_API_URL
   const token = process.env.KV_REST_API_TOKEN
   if (!url || !token) throw new Error('Faltan KV_REST_API_URL / KV_REST_API_TOKEN')
@@ -77,7 +77,7 @@ async function redis(commands: readonly Command[]): Promise<unknown[]> {
   })
 }
 
-const json = (body: unknown, status = 200): Response =>
+export const json = (body: unknown, status = 200): Response =>
   Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } })
 
 const fail = (err: unknown): Response => {
@@ -99,7 +99,7 @@ async function claim({ name, token }: Claim): Promise<string | undefined> {
   return owner === hash && typeof display === 'string' ? display : undefined
 }
 
-async function readJson(request: Request): Promise<unknown> {
+export async function readJson(request: Request): Promise<unknown> {
   try {
     return await request.json()
   } catch {

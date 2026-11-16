@@ -24,6 +24,17 @@ interface Limbs {
   readonly arms: readonly [THREE.Group, THREE.Group]
 }
 const LIMBS = new WeakMap<THREE.Group, Limbs>()
+const MASKS = new WeakMap<THREE.Group, THREE.Group>()
+// Banda del antifaz: aro tumbado alrededor de la cabeza, para que se vea también de espaldas.
+const BAND = new THREE.TorusGeometry(0.41, 0.075, 8, 24).rotateX(Math.PI / 2)
+const MASK = 0x16161a
+
+/** Pone o quita el antifaz de ladrón. */
+export function setMask(fig: THREE.Group, on: boolean): void {
+  const mask = MASKS.get(fig)
+  if (!mask) throw new Error('Figura sin antifaz registrado')
+  mask.visible = on
+}
 
 /** Balancea piernas y brazos opuestos; ángulo 0 = quieto. */
 export function swingLimbs(fig: THREE.Group, angle: number): void {
@@ -135,6 +146,19 @@ export function buildFigure(look: Look): THREE.Group {
       for (const side of [1, -1]) part(SPHERE, look.hair, [0.1, 0.32, 0.09], [0.1, HEAD_Y - 0.14, side * 0.4]) // mechones
     }
     if (style === 'bun') part(SPHERE, look.hair, [0.14, 0.14, 0.14], [-0.3, HEAD_Y + 0.36, 0])
+  }
+
+  // Antifaz de ladrón, oculto hasta que roba: banda negra con los ojos asomando y nudo en la nuca.
+  const mask = new THREE.Group()
+  mask.visible = false
+  g.add(mask)
+  MASKS.set(g, mask)
+  part(BAND, MASK, [1.02, 0.95, 1.08], [0, HEAD_Y + 0.02, 0], mask)
+  part(SPHERE, MASK, [0.07, 0.07, 0.07], [-0.56, HEAD_Y + 0.02, 0], mask)
+  for (const side of [1, -1]) part(BOX, MASK, [0.05, 0.26, 0.09], [-0.6, HEAD_Y - 0.1, side * 0.07], mask).rotation.x = side * 0.35
+  for (const side of [1, -1]) {
+    part(SPHERE, 0xffffff, [0.03, 0.05, 0.06], [0.49, HEAD_Y + 0.02, side * 0.15], mask)
+    part(SPHERE, 0x111111, [0.02, 0.025, 0.028], [0.513, HEAD_Y + 0.015, side * 0.15], mask)
   }
 
   g.scale.setScalar(look.scale ?? 1)

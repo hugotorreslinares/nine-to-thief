@@ -1,3 +1,4 @@
+import { LEVELS } from './levels.ts'
 import { box, type Box, type Pt } from './logic.ts'
 
 export type Hair = 'short' | 'bald' | 'balding' | 'long' | 'bun' | 'curly'
@@ -239,23 +240,35 @@ export const CHAIRS: readonly (Pt & { readonly dir: number })[] = [
   { x: 17, z: 13.6, dir: 0 }, { x: 7.5, z: 20.5, dir: Math.PI },
 ]
 
-export interface Spot extends Pt {
+export interface OfficeObject extends Pt {
+  /** Nivel (desde 1) en el que se roba, e índice dentro de ese nivel. */
+  readonly level: number
+  readonly index: number
   readonly y: number
+  /** Giro para alinearse con su escritorio. */
+  readonly turn: number
 }
 
-/** Lugares donde puede aparecer un objeto robable. */
-export const SPOTS: readonly Spot[] = [
-  ...CHARACTERS.map((c): Spot => {
-    const [x, z, w, d] = c.desk
-    return w >= d ? { x: x + w / 4, z, y: 0.75 } : { x, z: z + d / 4, y: 0.75 }
-  }),
-  { x: 3, z: 4.5, y: 0.75 }, { x: 5.5, z: 4.5, y: 0.75 },
-  { x: 21.2, z: 14.5, y: 1.1 },
-  { x: 10, z: 0.65, y: 1.2 },
-  { x: 25.5, z: 18.4, y: 0.75 },
-  { x: 29, z: 12.5, y: 0.75 },
-  { x: 31.4, z: 11.5, y: 0.9 },
-]
+/** Punto sobre el escritorio de un personaje: `a` a lo largo (monitor en negativo), `f` hacia su silla. */
+function onDesk(c: Character, [a, f]: readonly [number, number]): Pt & { readonly turn: number } {
+  const [x, z, w, d] = c.desk
+  const along = w >= d
+  const long = (along ? w : d) / 1.8
+  const short = along ? d : w
+  const side = Math.sign(along ? c.home.z - z : c.home.x - x) || 1
+  return along
+    ? { x: x + a * long, z: z + f * short * side, turn: 0 }
+    : { x: x + f * short * side, z: z + a * long, turn: S }
+}
+
+/** Todos los objetos robables de la oficina, en su sitio fijo. */
+export const OBJECTS: readonly OfficeObject[] = LEVELS.flatMap((kind, i) =>
+  kind.places.map((place, index): OfficeObject => {
+    if (typeof place !== 'string') return { level: i + 1, index, ...place, turn: 0 }
+    const owner = CHARACTERS.find((c) => c.id === place)
+    if (!owner) throw new Error(`Nivel ${i + 1}: no existe el escritorio de ${place}`)
+    return { level: i + 1, index, y: 0.75, ...onDesk(owner, kind.slot) }
+  }))
 
 /** Rutas de patrulla en bucle por pasillos libres. */
 export const ROUTES: readonly (readonly Pt[])[] = [
@@ -274,24 +287,7 @@ export const ROUTES: readonly (readonly Pt[])[] = [
 /** Quién sale a patrullar primero al subir de nivel. */
 export const PATROL_ORDER: readonly string[] = ['dwight', 'michael', 'kelly', 'darryl', 'creed', 'angela', 'andy']
 
-export interface ItemKind {
-  readonly plural: string
-  readonly color: number
-  readonly size: readonly [number, number, number]
-}
-
-export const ITEMS: readonly ItemKind[] = [
-  { plural: 'cosedoras', color: 0xc0392b, size: [0.3, 0.1, 0.1] },
-  { plural: 'tazas', color: 0xf5f5f5, size: [0.14, 0.16, 0.14] },
-  { plural: 'resmas de papel', color: 0xdfe9f5, size: [0.3, 0.08, 0.22] },
-  { plural: 'teléfonos', color: 0x1c1c1c, size: [0.26, 0.08, 0.2] },
-  { plural: 'portátiles', color: 0x8d949c, size: [0.34, 0.04, 0.24] },
-  { plural: 'trofeos', color: 0xd4af37, size: [0.1, 0.3, 0.1] },
-]
-
 export interface LevelConfig {
-  readonly count: number
-  readonly item: ItemKind
   readonly range: number
   readonly halfAngle: number
   readonly sweepSpeed: number
@@ -303,11 +299,7 @@ export interface LevelConfig {
 export const LEVEL_SECONDS = 60
 
 export function levelConfig(n: number): LevelConfig {
-  const item = ITEMS[(n - 1) % ITEMS.length]
-  if (!item) throw new Error(`Nivel inválido: ${n}`)
   return {
-    count: Math.min(2 + n, 8),
-    item,
     range: Math.min(3.5 + 0.5 * n, 7.5),
     halfAngle: (Math.min(22 + 3 * n, 42) * Math.PI) / 180,
     sweepSpeed: 0.5 + 0.12 * n,

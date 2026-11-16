@@ -1,5 +1,9 @@
 import assert from 'node:assert/strict'
+import { existsSync, readFileSync } from 'node:fs'
 import { decode, encode, parseClaim, parseEntry } from '../api/scores.ts'
+import { POST } from '../api/play.ts'
+import { COUNTS } from './levels.ts'
+import { FRESH, MAX_STARS, caught, steal, type Progress } from './progress.ts'
 import { box, canSee, rayDistance, resolveCircle, turnToward } from './logic.ts'
 
 const viewer = { x: 0, z: 0, dir: 0, range: 5, halfAngle: Math.PI / 6 }
@@ -30,5 +34,79 @@ assert.equal(typeof parseClaim({ name: 'Ana', token: 'corto' }), 'string', 'rech
 assert.equal(typeof parseEntry({ name: '<b>x</b>', token, level: 2, seconds: 10 }), 'string', 'rechaza HTML en el apodo')
 assert.equal(typeof parseEntry({ name: 'Ana', token, level: 2.5, seconds: 10 }), 'string', 'rechaza nivel no entero')
 assert.equal(typeof parseEntry({ name: 'Ana', token, level: 500, seconds: 10 }), 'string', 'rechaza nivel imposible')
+
+// ---------- Progresión ----------
+
+const first = COUNTS[0] ?? 0
+assert.equal(COUNTS.length, 10, 'hay 10 niveles')
+assert.equal(steal(FRESH, first, COUNTS), undefined, 'rechaza un objeto que no existe')
+assert.equal(steal({ ...FRESH, stolen: [0] }, 0, COUNTS), undefined, 'rechaza robar dos veces lo mismo')
+let p: Progress = FRESH
+for (let i = 0; i < first; i++) p = steal(p, i, COUNTS) ?? assert.fail('robo válido rechazado')
+assert.deepEqual(p, { ...FRESH, level: 2, best: 1 }, 'robar todo sube de nivel')
+assert.equal(steal({ ...FRESH, level: 11 }, 0, COUNTS), undefined, 'con la oficina vacía no queda nada')
+p = { ...p, stolen: [1] }
+for (let i = 1; i < MAX_STARS; i++) p = caught(p)
+assert.deepEqual([p.level, p.stars, p.stolen], [2, 4, [1]], 'cuatro capturas no bajan de nivel')
+p = caught(p)
+assert.deepEqual([p.level, p.stars, p.captures, p.stolen], [1, 0, 5, []], 'la quinta baja un nivel y devuelve sus objetos')
+for (let i = 0; i < MAX_STARS; i++) p = caught(p)
+assert.equal(p.level, 1, 'nunca baja del nivel 1')
+
+// ---------- Partidas: api/play.ts contra un Redis falso en memoria ----------
+
+const strings = new Map<string, string>()
+const hashes = new Map<string, Map<string, string>>()
+const hashOf = (key: string): Map<string, string> => hashes.get(key) ?? hashes.set(key, new Map()).get(key) ?? assert.fail()
+function fakeRedis([cmd, key = '', ...args]: readonly string[]): unknown {
+  switch (cmd) {
+    case 'GET': return strings.get(key) ?? null
+    case 'SET': return strings.has(key) ? null : (strings.set(key, args[0] ?? ''), 'OK') // siempre NX
+    case 'DEL': return Number(hashes.delete(key))
+    case 'HSET': for (let i = 0; i + 1 < args.length; i += 2) hashOf(key).set(args[i] ?? '', args[i + 1] ?? ''); return 1
+    case 'HDEL': return Number(hashOf(key).delete(args[0] ?? ''))
+    case 'HMGET': return args.map((field) => hashOf(key).get(field) ?? null)
+    default: throw new Error(`Redis falso: falta ${cmd}`)
+  }
+}
+process.env.KV_REST_API_URL = 'http://redis.test'
+process.env.KV_REST_API_TOKEN = 'test'
+globalThis.fetch = async (_url, init) => {
+  const commands = JSON.parse(String(init?.body)) as (string | number)[][]
+  return Response.json(commands.map((command) => ({ result: fakeRedis(command.map(String)) })))
+}
+
+const play = async (body: object): Promise<{ status: number; data: Record<string, unknown> }> => {
+  const res = await POST(new Request('http://x/api/play', { method: 'POST', body: JSON.stringify(body) }))
+  return { status: res.status, data: (await res.json()) as Record<string, unknown> }
+}
+
+const csv = new URL('../nfc-tags.csv', import.meta.url)
+if (existsSync(csv)) {
+  const [code, other] = [...readFileSync(csv, 'utf8').matchAll(/\/play\/([\w-]+)/g)].map((m) => m[1] ?? '')
+  assert.equal((await play({ action: 'open', code: 'x'.repeat(22) })).status, 404, 'rechaza un código inventado')
+  assert.equal((await play({ action: 'open', code })).data.registered, false, 'etiqueta nueva: pide registro')
+  assert.equal((await play({ action: 'register', code, name: 'Ana', email: 'no-es-correo' })).status, 400, 'valida el correo')
+  const ana = (await play({ action: 'register', code, name: 'Ana', email: 'ana@example.com' })).data
+  assert.deepEqual([ana.registered, ana.name, ana.progress], [true, 'Ana', FRESH], 'registra y abre sesión')
+  assert.ok(!JSON.stringify(ana).includes('example.com'), 'el correo no sale del servidor')
+  const again = (await play({ action: 'register', code, name: 'Eva', email: 'eva@example.com' })).data
+  assert.equal(again.name, 'Ana', 'una etiqueta ya registrada no cambia de dueño')
+  const { session } = again
+  assert.equal((await play({ action: 'start', session: ana.session, char: 'pam' })).status, 401, 'un tap nuevo invalida la sesión anterior')
+  assert.equal((await play({ action: 'steal', session, index: 0 })).status, 409, 'no se roba sin intento en curso')
+  assert.deepEqual((await play({ action: 'start', session, char: 'pam' })).data.progress, { ...FRESH, char: 'pam' }, 'empieza y fija el personaje')
+  assert.equal((await play({ action: 'steal', session, index: 99 })).status, 409, 'rechaza objetos de otro nivel')
+  assert.deepEqual((await play({ action: 'steal', session, index: 0 })).data.progress, { ...FRESH, char: 'pam', stolen: [0] }, 'guarda el robo')
+  assert.equal((await play({ action: 'steal', session, index: 1 })).status, 409, 'rechaza robos más rápidos de lo posible')
+  assert.equal((await play({ action: 'caught', session })).status, 200, 'registra la captura')
+  const back = (await play({ action: 'open', code })).data
+  assert.deepEqual(back.progress, { ...FRESH, char: 'pam', stolen: [0], stars: 1, captures: 1 }, 'al volver sigue donde lo dejó')
+  assert.deepEqual((await play({ action: 'start', session: back.session, char: 'jim' })).data.progress, back.progress, 'el personaje no se cambia')
+  const eve = (await play({ action: 'register', code: other, name: 'Eva', email: 'eva@example.com' })).data
+  assert.deepEqual(eve.progress, FRESH, 'cada etiqueta tiene su propia partida')
+} else {
+  console.warn('Sin nfc-tags.csv: se omiten las pruebas de partidas')
+}
 
 console.log('logic ok')

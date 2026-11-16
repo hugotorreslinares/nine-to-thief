@@ -1,11 +1,14 @@
 import * as THREE from 'three'
 import './style.css'
 import {
-  CHAIRS, CHAIR_R, CHARACTERS, CONFERENCE, FURNITURE, LEVEL_SECONDS, MAP, PATROL_ORDER, ROOMS, ROUTES, SPAWN, SPOTS, WALLS,
+  CHAIRS, CHAIR_R, CHARACTERS, CONFERENCE, FURNITURE, LEVEL_SECONDS, MAP, OBJECTS, PATROL_ORDER, ROOMS, ROUTES, SPAWN, WALLS,
   levelConfig, type Character, type LevelConfig,
 } from './data.ts'
-import { buildFigure, swingLimbs } from './figure.ts'
-import { posterHtml } from './poster.ts'
+import { buildFigure, setMask, swingLimbs } from './figure.ts'
+import { COUNTS, DEMO_COUNTS, LEVELS } from './levels.ts'
+import { FRESH, MAX_STARS, caught, steal, type Progress } from './progress.ts'
+import { PlayError, close, idle, open, register, report, type Account } from './session.ts'
+import { mugshotHtml, posterHtml } from './poster.ts'
 import { claimNick, cleanNick, fetchBoard, isTaken, loadNick, saveNick, submitScore } from './scores.ts'
 import { canSee, rayDistance, resolveCircle, turnToward, type Box, type Pt } from './logic.ts'
 
@@ -202,9 +205,46 @@ function makeChair(at: Pt & { readonly dir: number }): THREE.Group {
 const chairs: readonly Chair[] = CHAIRS.map((c) => ({ home: c, mesh: makeChair(c), x: c.x, z: c.z }))
 const CHAIR_GAP = PLAYER_R + CHAIR_R
 
+/** Objeto robable en su sitio fijo de la oficina. */
 interface Item extends Pt {
+  readonly level: number
+  readonly index: number
+  readonly y: number
+  readonly turn: number
   readonly mesh: THREE.Group
+  readonly marker: THREE.Mesh
 }
+
+/** Los objetos reales son diminutos desde la cámara: se agrandan para que se note cuándo faltan. */
+const OBJECT_SCALE = 1.5
+const MARKER_GEO = new THREE.OctahedronGeometry(0.16)
+const MARKER_MAT = new THREE.MeshBasicMaterial({ color: 0xffd400 })
+const partMats = new Map<number, THREE.MeshStandardMaterial>()
+
+const objects: readonly Item[] = OBJECTS.map((o) => {
+  const kind = LEVELS[o.level - 1]
+  if (!kind) throw new Error(`Objeto sin nivel: ${o.level}`)
+  const mesh = new THREE.Group()
+  for (const part of kind.parts) {
+    let mat = partMats.get(part.color)
+    if (!mat) partMats.set(part.color, mat = new THREE.MeshStandardMaterial({ color: part.color, roughness: 0.5 }))
+    const piece = new THREE.Mesh(part.shape === 'box' ? UNIT_BOX : UNIT_CYLINDER, mat)
+    piece.scale.set(...part.size)
+    piece.position.set(...part.at)
+    piece.castShadow = true
+    mesh.add(piece)
+  }
+  const marker = new THREE.Mesh(MARKER_GEO, MARKER_MAT)
+  marker.position.y = 1.1 / OBJECT_SCALE
+  mesh.add(marker)
+  mesh.position.set(o.x, o.y, o.z)
+  scene.add(mesh)
+  return { ...o, mesh, marker }
+})
+
+/** Objetos recién robados, con los segundos que llevan desapareciendo. */
+const vanishing = new Map<Item, number>()
+const VANISH_SECONDS = 0.4
 
 function makeCone(): Npc['cone'] {
   const geo = new THREE.BufferGeometry()
@@ -249,6 +289,10 @@ scene.add(ring)
 type Phase = 'menu' | 'playing' | 'won' | 'busted'
 
 let phase: Phase = 'menu'
+/** Jugador del art toy; sin él se juega la demo, que no se guarda. */
+let account: Account | undefined
+let progress: Progress = FRESH
+let counts: readonly number[] = DEMO_COUNTS
 let level = 1
 let cfg: LevelConfig = levelConfig(1)
 let npcs: Npc[] = []
@@ -289,6 +333,50 @@ const sfx = {
   ability: (): void => tone(330, 0, 0.15, 'sawtooth', 0.06),
 }
 
+/** Volumen de la música de suspenso; se crea al primer robo y queda sonando en silencio. */
+let suspense: GainNode | undefined
+let stealing = false
+
+/** Bajo que alterna dos notas a un semitono, con pulso. Suena solo mientras se roba. */
+function makeSuspense(ctx: AudioContext): GainNode {
+  const master = ctx.createGain()
+  master.gain.value = 0
+  master.connect(ctx.destination)
+  const pulse = ctx.createGain()
+  pulse.gain.value = 0.5
+  pulse.connect(master)
+  const lfo = (type: OscillatorType, hz: number, depth: number, target: AudioParam): void => {
+    const osc = ctx.createOscillator()
+    const amount = ctx.createGain()
+    osc.type = type
+    osc.frequency.value = hz
+    amount.gain.value = depth
+    osc.connect(amount).connect(target)
+    osc.start()
+  }
+  lfo('sine', 6, 0.5, pulse.gain) // pulso
+  for (const [type, hz, volume] of [['triangle', 84.86, 1], ['sawtooth', 169.72, 0.12]] as const) {
+    const voice = ctx.createOscillator()
+    const level = ctx.createGain()
+    voice.type = type
+    voice.frequency.value = hz
+    level.gain.value = volume
+    voice.connect(level).connect(pulse)
+    voice.start()
+    lfo('square', 1.5, hz * 0.029, voice.frequency) // mi ↔ fa
+  }
+  return master
+}
+
+/** Antifaz y música: puestos mientras roba, fuera en cuanto suelta. */
+function setStealing(on: boolean): void {
+  stealing = on
+  setMask(figureOf(player.char), on)
+  if (!audio || (!on && !suspense)) return
+  suspense ??= makeSuspense(audio)
+  suspense.gain.setTargetAtTime(on ? 0.22 : 0, audio.currentTime, 0.04)
+}
+
 // ---------- Interfaz ----------
 
 const ui = el<HTMLDivElement>('#ui')
@@ -319,7 +407,9 @@ ui.innerHTML = `
       <button id="grabBtn" class="ink pointer-events-auto absolute right-6 bottom-6 size-24 touch-none rounded-full border-4 border-black bg-yellow-400/90 text-xl">ROBAR</button>
     </div>
   </div>
+  <div id="notice" class="ink absolute top-24 left-1/2 z-20 hidden w-max max-w-[90vw] -translate-x-1/2 rounded-lg border-2 border-black bg-black/85 px-4 py-2 text-center text-lg text-red-400 md:text-2xl"></div>
   <div id="banner" class="ink pointer-events-auto absolute inset-0 hidden p-4 flex-col items-center justify-center gap-3 bg-black/50 text-center">
+    <div id="mugshot" class="hidden h-[min(42dvh,20rem)] -rotate-2 border-4 border-white bg-white tracking-normal shadow-2xl [text-shadow:none]"></div>
     <div id="bannerTitle" class="text-8xl"></div>
     <div id="bannerText" class="text-xl md:text-3xl"></div>
     <div id="bannerRank" class="text-xl text-emerald-400 md:text-2xl"></div>
@@ -330,6 +420,17 @@ ui.innerHTML = `
   <div id="menu" class="pointer-events-auto absolute inset-0 flex flex-col items-center gap-4 overflow-y-auto bg-black/75 p-3 md:p-6">
     <h1 class="ink text-center text-4xl text-yellow-300 md:text-7xl">THE OFFICE <span class="text-emerald-400">THEFT</span></h1>
     <p class="ink text-center text-base text-neutral-200 md:text-xl">Elige a tu ladrón. Roba sin que te vean mientras lo coges. Un minuto por nivel.</p>
+    <p id="account" class="ink text-center text-lg text-emerald-400 md:text-2xl"></p>
+    <dialog id="signup" class="pointer-events-auto m-auto w-full max-w-sm rounded-xl border-2 border-yellow-300 bg-neutral-900 p-5 text-white backdrop:bg-black/70">
+      <p class="mb-1 text-3xl text-yellow-300">ART TOY NUEVO</p>
+      <p class="mb-3 font-sans text-sm text-neutral-300">Regístralo una sola vez. Después basta con acercarlo para seguir tu partida.</p>
+      <form id="signupForm" class="flex flex-col gap-2 font-sans">
+        <input id="signupName" required maxlength="24" autocomplete="name" placeholder="Tu nombre" class="rounded-lg border-2 border-neutral-600 bg-neutral-800 px-3 py-2 text-base text-white select-text" />
+        <input id="signupEmail" required type="email" maxlength="254" autocomplete="email" placeholder="Tu correo" class="rounded-lg border-2 border-neutral-600 bg-neutral-800 px-3 py-2 text-base text-white select-text" />
+        <p id="signupError" class="min-h-5 text-sm text-red-400"></p>
+        <button id="signupBtn" class="font-gta cursor-pointer rounded bg-yellow-300 px-4 py-2 text-xl text-black disabled:opacity-50">EMPEZAR A ROBAR</button>
+      </form>
+    </dialog>
     <div class="flex flex-wrap items-center justify-center gap-2">
       <input id="nick" maxlength="12" autocomplete="nickname" placeholder="Tu apodo para el tablón" class="rounded-lg border-2 border-neutral-600 bg-neutral-900 px-3 py-2 font-sans text-base text-white select-text" />
       <button id="boardBtn" class="ink cursor-pointer rounded-lg border-2 border-black bg-yellow-400 px-4 py-2 text-lg">🏆 TABLÓN</button>
@@ -357,14 +458,30 @@ ui.innerHTML = `
     </dialog>
     <div id="roster" class="grid w-full max-w-6xl grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4"></div>
     <p class="ink text-center text-base text-neutral-300 md:text-lg">${TOUCH ? 'Palanca: moverse · mantén ROBAR · toca la habilidad para usarla' : 'WASD / flechas: moverse · mantén E: robar · Q: habilidad · Esc: menú'}</p>
-    <footer class="pb-4 font-sans text-sm text-neutral-400">
-      Código abierto en <a href="https://github.com/hugotorreslinares/the-office-theft" target="_blank" rel="noopener noreferrer" class="text-sky-300 underline hover:text-sky-200">GitHub</a>
+    <footer class="mt-4 flex w-full max-w-6xl flex-col items-center gap-3 border-t-2 border-neutral-700 pt-5 pb-6 text-center font-sans text-sm text-neutral-400">
+      <a href="https://www.instagram.com/mrmonomalo/" target="_blank" rel="noopener noreferrer" class="flex items-center gap-2 rounded-full border-2 border-black bg-linear-to-r from-fuchsia-600 via-rose-500 to-amber-400 px-4 py-2 text-base font-bold text-white hover:brightness-110">
+        <svg viewBox="0 0 24 24" class="size-5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor"/></svg>
+        Creado por @mrmonomalo
+      </a>
+      <p>Un juego y una colección de art toys. Sígueme en Instagram para ver los próximos personajes.</p>
+      <p class="text-xs text-neutral-500">
+        Código abierto en <a href="https://github.com/hugotorreslinares/the-office-theft" target="_blank" rel="noopener noreferrer" class="text-sky-300 underline hover:text-sky-200">GitHub</a>
+        · Proyecto de fans sin ánimo de lucro, no afiliado a la serie ni a sus dueños.
+      </p>
     </footer>
   </div>`
 
 const dom = {
   hud: el<HTMLDivElement>('#hud'),
   menu: el<HTMLDivElement>('#menu'),
+  account: el<HTMLParagraphElement>('#account'),
+  notice: el<HTMLDivElement>('#notice'),
+  signup: el<HTMLDialogElement>('#signup'),
+  signupForm: el<HTMLFormElement>('#signupForm'),
+  signupName: el<HTMLInputElement>('#signupName'),
+  signupEmail: el<HTMLInputElement>('#signupEmail'),
+  signupError: el<HTMLParagraphElement>('#signupError'),
+  signupBtn: el<HTMLButtonElement>('#signupBtn'),
   installBtn: el<HTMLButtonElement>('#installBtn'),
   installHelp: el<HTMLDialogElement>('#installHelp'),
   nick: el<HTMLInputElement>('#nick'),
@@ -383,6 +500,7 @@ const dom = {
   abilityBox: el<HTMLDivElement>('#abilityBox'),
   poster: el<HTMLDivElement>('#poster'),
   banner: el<HTMLDivElement>('#banner'),
+  mugshot: el<HTMLDivElement>('#mugshot'),
   bannerTitle: el<HTMLDivElement>('#bannerTitle'),
   bannerText: el<HTMLDivElement>('#bannerText'),
   bannerHint: el<HTMLDivElement>('#bannerHint'),
@@ -404,8 +522,18 @@ const radar = ((): CanvasRenderingContext2D => {
   return ctx
 })()
 
-// Datos estáticos propios: no hay entrada de usuario en este HTML.
-dom.roster.innerHTML = CHARACTERS.map((c) => `
+const starsText = (): string => '★'.repeat(progress.stars) + '☆'.repeat(MAX_STARS - progress.stars)
+const finished = (): boolean => progress.level > counts.length
+
+/** Pinta la línea de cuenta y el elenco. Con art toy, el personaje elegido queda fijo. */
+function renderMenu(): void {
+  // textContent: el nombre lo escribió el jugador.
+  dom.account.textContent = account
+    ? `${account.name} · ${finished() ? 'OFICINA VACÍA' : `NIVEL ${progress.level}`} · ${starsText()}`
+    : 'DEMO: solo el nivel 1. Acerca tu art toy para jugar los 10 niveles.'
+  const own = account ? CHARACTERS.find((c) => c.id === progress.char) : undefined
+  // Datos estáticos propios: no hay entrada de usuario en este HTML.
+  dom.roster.innerHTML = (own ? [own] : CHARACTERS).map((c) => `
   <button data-id="${c.id}" class="flex cursor-pointer items-center gap-3 rounded-lg border-2 border-neutral-700 bg-neutral-900/90 p-2 text-left hover:border-yellow-300 hover:bg-neutral-800">
     <img src="${portraits.get(c.id) ?? ''}" alt="${c.name}" class="size-16 shrink-0 md:size-20" />
     <span class="flex flex-col">
@@ -414,15 +542,118 @@ dom.roster.innerHTML = CHARACTERS.map((c) => `
       <span class="font-sans text-xs text-neutral-300">${c.ability.text}</span>
     </span>
   </button>`).join('')
+}
 
 dom.roster.addEventListener('click', (e) => {
   const button = e.target instanceof Element ? e.target.closest<HTMLButtonElement>('button[data-id]') : null
   const chosen = CHARACTERS.find((c) => c.id === button?.dataset.id)
-  if (!chosen) return
+  if (!chosen || connecting) return
   audio ??= new AudioContext()
   player.char = chosen
-  startLevel(1)
+  if (account) progress = { ...progress, char: progress.char ?? chosen.id }
+  else progress = FRESH // la demo empieza de cero cada vez
+  startLevel()
 })
+
+// ---------- Art toy ----------
+
+let noticeTimer: ReturnType<typeof setTimeout> | undefined
+function notify(text: string): void {
+  dom.notice.textContent = text
+  dom.notice.classList.remove('hidden')
+  clearTimeout(noticeTimer)
+  noticeTimer = setTimeout(() => dom.notice.classList.add('hidden'), 5000)
+}
+
+/** Muestra u oculta cada objeto según el progreso: lo robado no está, lo del nivel en curso lleva marcador. */
+function syncObjects(): void {
+  vanishing.clear()
+  const stealable = !finished()
+  for (const o of objects) {
+    const current = o.level === progress.level
+    o.mesh.visible = o.level > progress.level || (current && !progress.stolen.includes(o.index))
+    o.marker.visible = current && stealable
+    o.mesh.scale.setScalar(OBJECT_SCALE)
+    o.mesh.position.y = o.y
+    o.mesh.rotation.y = o.turn
+  }
+  items = stealable ? objects.filter((o) => o.level === progress.level && o.mesh.visible) : []
+}
+
+/** Último progreso confirmado por el servidor; manda sobre el local en cuanto no hay partida en curso. */
+let confirmed: Progress | undefined
+
+function settle(): void {
+  if (!account || !confirmed || !idle() || phase === 'playing') return
+  progress = confirmed
+  confirmed = undefined
+  syncObjects()
+  renderMenu()
+}
+
+function onSaved(saved: Progress): void {
+  confirmed = saved
+  settle()
+}
+
+function onSaveFailed(err: unknown): void {
+  if (!(err instanceof PlayError && err.status === 401)) {
+    console.error(err)
+    return notify('Sin conexión: este progreso no se guardó')
+  }
+  // Otra pestaña hizo tap, o la sesión caducó: esta ya no puede seguir.
+  close()
+  account = undefined
+  confirmed = undefined
+  counts = DEMO_COUNTS
+  progress = FRESH
+  showMenu()
+  notify('Sesión terminada. Acerca tu art toy para continuar.')
+}
+
+function signIn(next: Account): void {
+  account = next
+  progress = next.progress
+  counts = COUNTS
+  player.char = CHARACTERS.find((c) => c.id === progress.char) ?? player.char
+  syncObjects()
+  renderMenu()
+}
+
+// La URL del art toy es una credencial: se saca de la barra de direcciones nada más leerla.
+const tagCode = /^\/play\/([\w-]{16,64})\/?$/.exec(location.pathname)?.[1]
+if (location.pathname !== '/') history.replaceState(null, '', '/')
+let connecting = tagCode !== undefined
+
+if (tagCode) {
+  dom.poster.classList.add('hidden')
+  dom.account.textContent = 'Conectando tu art toy…'
+  open(tagCode).then((found) => {
+    if (found) signIn(found)
+    else {
+      dom.account.textContent = 'Art toy nuevo: regístralo para empezar'
+      dom.signup.showModal()
+    }
+  }).catch((err: unknown) => {
+    console.error(err)
+    renderMenu()
+    notify(err instanceof PlayError && err.status === 404 ? 'Etiqueta no reconocida: juegas la demo' : 'No se pudo conectar: juegas la demo')
+  }).finally(() => { connecting = false })
+
+  dom.signupForm.addEventListener('submit', (e) => {
+    e.preventDefault()
+    dom.signupBtn.disabled = true
+    dom.signupError.textContent = ''
+    register(tagCode, dom.signupName.value, dom.signupEmail.value).then((created) => {
+      dom.signup.close()
+      signIn(created)
+    }).catch((err: unknown) => {
+      console.error(err)
+      dom.signupError.textContent = err instanceof PlayError ? err.message : 'No se pudo registrar'
+    }).finally(() => { dom.signupBtn.disabled = false })
+  })
+  dom.signup.addEventListener('close', renderMenu)
+}
 
 // ---------- Instalación ----------
 
@@ -537,6 +768,8 @@ dom.shareBtn.addEventListener('click', (e) => {
 })
 
 function showBanner(title: string, color: string, text: string, hint: string): void {
+  setStealing(false)
+  dom.mugshot.classList.add('hidden')
   dom.bannerRank.textContent = ''
   dom.shareBtn.textContent = 'COMPARTIR'
   dom.shareBtn.classList.toggle('hidden', bestLevel === 0)
@@ -549,42 +782,22 @@ function showBanner(title: string, color: string, text: string, hint: string): v
 
 function showMenu(): void {
   phase = 'menu'
+  setStealing(false)
   dom.hud.classList.add('hidden')
   dom.banner.classList.replace('flex', 'hidden')
   dom.menu.classList.remove('hidden')
+  settle()
+  syncObjects()
+  renderMenu()
 }
 
 // ---------- Niveles ----------
 
-function shuffled<T>(list: readonly T[]): T[] {
-  const out = [...list]
-  for (let i = out.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1))
-    const a = out[i] as T
-    out[i] = out[j] as T
-    out[j] = a
-  }
-  return out
-}
-
-function makeItem(x: number, y: number, z: number): Item {
-  const mesh = new THREE.Group()
-  const [w, h, d] = cfg.item.size
-  const body = new THREE.Mesh(UNIT_BOX, new THREE.MeshStandardMaterial({ color: cfg.item.color, roughness: 0.5 }))
-  body.scale.set(w, h, d)
-  body.position.y = h / 2
-  body.castShadow = true
-  const marker = new THREE.Mesh(new THREE.OctahedronGeometry(0.16), new THREE.MeshBasicMaterial({ color: 0xffd400 }))
-  marker.position.y = 1.1
-  mesh.add(body, marker)
-  mesh.position.set(x, y, z)
-  scene.add(mesh)
-  return { x, z, mesh }
-}
-
-function startLevel(n: number): void {
-  level = n
-  cfg = levelConfig(n)
+function startLevel(): void {
+  settle()
+  if (finished()) return showMenu()
+  level = progress.level
+  cfg = levelConfig(level)
   timeLeft = LEVEL_SECONDS
   grab = 0
   cooldown = 0
@@ -611,12 +824,12 @@ function startLevel(n: number): void {
     chair.mesh.position.set(chair.x, 0, chair.z)
   }
 
-  for (const item of items) scene.remove(item.mesh)
-  items = shuffled(SPOTS).slice(0, cfg.count).map((s) => makeItem(s.x, s.y, s.z))
-  total = items.length
+  syncObjects()
+  total = counts[level - 1] ?? 0
+  report({ action: 'start', char: player.char.id }, onSaved, onSaveFailed)
 
-  dom.mission.textContent = `NIVEL ${n} · ROBA ${total} ${cfg.item.plural.toUpperCase()}`
-  dom.stars.textContent = '★'.repeat(Math.min(n, 6)) + '☆'.repeat(Math.max(6 - n, 0))
+  dom.mission.textContent = `NIVEL ${level} · ROBA ${total} ${(LEVELS[level - 1]?.plural ?? '').toUpperCase()}`
+  dom.stars.textContent = starsText()
   dom.abilityName.textContent = player.char.ability.name
   dom.menu.classList.add('hidden')
   dom.banner.classList.replace('flex', 'hidden')
@@ -625,17 +838,39 @@ function startLevel(n: number): void {
   phase = 'playing'
 }
 
-function bust(reason: string): void {
+/** `captured`: lo vio un vigilante. Suma una estrella; a la quinta se pierde un nivel. */
+function bust(reason: string, captured: boolean): void {
   phase = 'busted'
   sfx.alarm()
-  showBanner('BUSTED', 'text-red-500', reason, TOUCH ? 'Toca para reintentar' : 'ENTER: reintentar · ESC: cambiar de personaje')
+  let text = reason
+  if (captured) {
+    const from = progress.level
+    progress = caught(progress)
+    report({ action: 'caught' }, onSaved, onSaveFailed)
+    if (progress.stars === 0) {
+      text = `${reason} Te atraparon ${MAX_STARS} veces: ${from > 1 ? `pierdes un nivel y vuelves al ${progress.level}` : 'tus robos del nivel 1 vuelven a su sitio'}.`
+      syncObjects()
+    } else {
+      text = `${reason} Capturas: ${starsText()}`
+    }
+    dom.stars.textContent = starsText()
+  }
+  showBanner('BUSTED', 'text-red-500', text, TOUCH ? 'Toca para reintentar' : 'ENTER: reintentar · ESC: cambiar de personaje')
+  if (!captured) return
+  // Datos estáticos propios y un número: no hay entrada de usuario en este HTML.
+  dom.mugshot.innerHTML = mugshotHtml(player.char, progress.captures)
+  dom.mugshot.classList.remove('hidden')
 }
 
 function win(): void {
   phase = 'won'
   sfx.win()
   bestLevel = Math.max(bestLevel, level)
-  showBanner('MISSION PASSED!', 'text-yellow-300', `Nivel ${level} superado con ${Math.ceil(timeLeft)} s de sobra`, TOUCH ? 'Toca para seguir' : 'ENTER: siguiente nivel')
+  const more = TOUCH ? 'Toca para seguir' : 'ENTER: siguiente nivel'
+  const back = TOUCH ? 'Toca para volver al menú' : 'ENTER: volver al menú'
+  if (!finished()) showBanner('MISSION PASSED!', 'text-yellow-300', `Nivel ${level} superado con ${Math.ceil(timeLeft)} s de sobra`, more)
+  else if (account) showBanner('¡OFICINA VACÍA!', 'text-yellow-300', 'Te lo robaste todo. No queda nada.', back)
+  else showBanner('DEMO SUPERADA', 'text-yellow-300', 'Acerca tu art toy para jugar los 10 niveles y guardar tu partida.', back)
   reportWin()
 }
 
@@ -680,8 +915,7 @@ const keys = new Set<string>()
 /** Enter o toque: avanza desde el póster o desde el cartel de fin de nivel. */
 function confirm(): void {
   if (phase === 'menu') dom.poster.classList.add('hidden')
-  else if (phase === 'won') startLevel(level + 1)
-  else if (phase === 'busted') startLevel(level)
+  else if (phase === 'won' || phase === 'busted') startLevel()
 }
 
 // Palanca táctil: dirección unitaria en pantalla (y hacia arriba).
@@ -809,9 +1043,10 @@ function update(dt: number): void {
       best = d
       target = item
     }
-    item.mesh.children[1]?.rotateY(dt * 3)
+    item.marker.rotateY(dt * 3)
   }
   const grabbing = target !== undefined && keys.has('KeyE')
+  if (grabbing !== stealing) setStealing(grabbing)
 
   // Pantalla: derecha = (1, -1), arriba = (-1, -1) sobre XZ.
   const ix = held('KeyD', 'ArrowRight') - held('KeyA', 'ArrowLeft') + stick.x
@@ -870,15 +1105,21 @@ function update(dt: number): void {
   }
 
   grab = grabbing ? grab + dt / (BASE_GRAB * (player.char.grabTime ?? 1)) : 0
-  if (caughtBy) return bust(`¡${caughtBy.char.name} te vio robando!`)
+  if (caughtBy) return bust(`¡${caughtBy.char.name} te vio robando!`, true)
   if (target && grab >= 1) {
-    scene.remove(target.mesh)
+    const next = steal(progress, target.index, counts)
+    if (!next) throw new Error(`Robo inválido: nivel ${progress.level}, objeto ${target.index}`)
+    const passed = next.level !== progress.level
+    progress = next
+    report({ action: 'steal', index: target.index }, onSaved, onSaveFailed)
+    vanishing.set(target, 0)
+    target.marker.visible = false
     items = items.filter((i) => i !== target)
     grab = 0
     sfx.pick()
-    if (items.length === 0) return win()
+    if (passed) return win()
   }
-  if (timeLeft <= 0) return bust('Se acabó el tiempo')
+  if (timeLeft <= 0) return bust('Se acabó el tiempo', false)
 
   dom.prompt.textContent = target ? (TOUCH ? 'MANTÉN ROBAR' : 'MANTÉN E PARA ROBAR') : ''
   dom.grab.value = Math.min(grab, 1)
@@ -908,6 +1149,9 @@ function drawHud(): void {
   dot(player, '#39ff88', 4)
 }
 
+syncObjects()
+if (!connecting) renderMenu()
+
 let last = performance.now()
 function frame(now: number): void {
   const dt = Math.min((now - last) / 1000, 0.05)
@@ -918,6 +1162,19 @@ function frame(now: number): void {
     lookAt(player.x, player.z)
   } else if (phase === 'menu') {
     lookAt(MAP.w / 2, MAP.d / 2)
+  }
+  // Lo robado sube girando y se encoge hasta desaparecer.
+  for (const [item, t] of vanishing) {
+    const k = 1 - (t + dt) / VANISH_SECONDS
+    if (k <= 0) {
+      item.mesh.visible = false
+      vanishing.delete(item)
+      continue
+    }
+    vanishing.set(item, t + dt)
+    item.mesh.scale.setScalar(OBJECT_SCALE * k)
+    item.mesh.position.y += dt * 1.5
+    item.mesh.rotation.y += dt * 14
   }
   renderer.render(scene, camera)
   requestAnimationFrame(frame)
