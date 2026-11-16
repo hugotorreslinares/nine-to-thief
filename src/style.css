@@ -1,0 +1,15 @@
+@import "tailwindcss";
+
+@theme {
+  --font-gta: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
+}
+
+/* Rótulo con borde negro estilo cartel de misión. */
+@utility ink {
+  letter-spacing: 0.04em;
+  text-shadow:
+    2px 2px 0 #000,
+    -1px -1px 0 #000,
+    1px -1px 0 #000,
+    -1px 1px 0 #000;
+}
