@@ -1,6 +1,6 @@
 {
-  "name": "The Office Theft",
-  "short_name": "Office Theft",
+  "name": "Threat Level: Theft",
+  "short_name": "Threat Level",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0a0a0a",

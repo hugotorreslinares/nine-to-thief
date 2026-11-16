@@ -1,4 +1,4 @@
-# The Office Theft
+# Threat Level: Theft
 
 Un juego de sigilo en el que te cuelas en una oficina para llevarte todo lo que puedas sin que tus compañeros te descubran. Elige a quién controlar, esquiva a quienes patrullan y aprovecha la habilidad especial de tu personaje: tienes **un minuto por nivel** para completar el robo, aunque algunas habilidades pueden darte más tiempo.
 

@@ -418,7 +418,7 @@ ui.innerHTML = `
   </div>
   <div id="poster" class="pointer-events-auto absolute inset-0 z-10 grid cursor-pointer grid-cols-6 grid-rows-3 gap-1 bg-black p-1 md:gap-2 md:p-2 portrait:grid-cols-3 portrait:grid-rows-6">${posterHtml()}</div>
   <div id="menu" class="pointer-events-auto absolute inset-0 flex flex-col items-center gap-4 overflow-y-auto bg-black/75 p-3 md:p-6">
-    <h1 class="ink text-center text-4xl text-yellow-300 md:text-7xl">THE OFFICE <span class="text-emerald-400">THEFT</span></h1>
+    <h1 class="ink text-center text-4xl text-yellow-300 md:text-7xl">THREAT LEVEL: <span class="text-emerald-400">THEFT</span></h1>
     <p class="ink text-center text-base text-neutral-200 md:text-xl">Elige a tu ladrón. Roba sin que te vean mientras lo coges. Un minuto por nivel.</p>
     <p id="account" class="ink text-center text-lg text-emerald-400 md:text-2xl"></p>
     <dialog id="signup" class="pointer-events-auto m-auto w-full max-w-sm rounded-xl border-2 border-yellow-300 bg-neutral-900 p-5 text-white backdrop:bg-black/70">
@@ -757,7 +757,7 @@ function reportWin(): void {
 
 dom.shareBtn.addEventListener('click', (e) => {
   e.stopPropagation() // el cartel entero avanza de nivel al tocarlo
-  const text = `Llegué al nivel ${bestLevel}${rank ? ` y voy #${rank}` : ''} en The Office Theft. ¿Me superas?`
+  const text = `Llegué al nivel ${bestLevel}${rank ? ` y voy #${rank}` : ''} en Threat Level: Theft. ¿Me superas?`
   const url = location.origin
   const done = navigator.share
     ? navigator.share({ text, url })

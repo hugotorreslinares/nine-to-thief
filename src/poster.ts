@@ -11,13 +11,57 @@ const PANELS: readonly (readonly [string, string])[] = [
 const HEAD = 'M58 95 Q58 40 100 40 Q142 40 142 95 Q142 140 120 160 Q100 172 80 160 Q58 140 58 95Z'
 const TOP_HAIR = 'M55 94 Q50 28 100 28 Q150 28 145 94 Q136 60 100 57 Q64 60 55 94Z'
 
-function hair(look: Look, layer: 'back' | 'front'): string {
+/** Rasgos solo de la ilustración (el muñeco 3D no los lleva), por id de personaje. */
+interface Detail {
+  /** Cuello de la ropa. Por defecto: camisa si lleva corbata, redondo si no. */
+  readonly neck?: 'suit' | 'vest' | 'open' | 'vneck'
+  readonly hair?: 'messy' | 'bob' | 'top-bun' | 'crop'
+  readonly lanyard?: boolean
+  readonly earrings?: boolean
+  readonly bowtie?: boolean
+  readonly cat?: boolean
+  readonly glasses?: boolean
+  readonly wrinkles?: boolean
+  readonly sad?: boolean
+}
+
+const DETAILS: Readonly<Record<string, Detail>> = {
+  michael: { neck: 'suit' },
+  jim: { hair: 'messy' },
+  pam: { hair: 'bob', lanyard: true },
+  ryan: { neck: 'suit' },
+  kelly: { earrings: true },
+  toby: { sad: true },
+  angela: { cat: true },
+  oscar: { glasses: true },
+  kevin: { neck: 'vest' },
+  stanley: { hair: 'crop' },
+  phyllis: { neck: 'vneck', glasses: true },
+  creed: { wrinkles: true },
+  meredith: { hair: 'top-bun', lanyard: true },
+  andy: { neck: 'vest', bowtie: true },
+  darryl: { neck: 'open', hair: 'crop' },
+}
+
+/** Dibuja una pieza y su reflejo respecto al eje de la cara. */
+const both = (svg: string): string => `${svg}<g transform="translate(200 0) scale(-1 1)">${svg}</g>`
+
+function hair(look: Look, detail: Detail, layer: 'back' | 'front'): string {
   const fill = hex(look.hair)
-  const style = look.hairStyle
+  const style = detail.hair ?? look.hairStyle
   if (layer === 'back') {
-    return style === 'long'
-      ? `<path d="M50 95 Q40 18 100 22 Q160 18 150 95 L158 200 L42 200Z" fill="${fill}"/>`
-      : ''
+    switch (style) {
+      case 'long':
+        return `<path d="M50 95 Q40 18 100 22 Q160 18 150 95 L158 200 L42 200Z" fill="${fill}"/>`
+      case 'bob':
+        return `<path d="M52 96 Q42 20 100 22 Q158 20 148 96 Q164 150 142 180 L58 180 Q36 150 52 96Z" fill="${fill}"/>`
+      case 'bun':
+        return `<circle cx="148" cy="92" r="18" fill="${fill}"/>`
+      case 'top-bun':
+        return `<circle cx="132" cy="42" r="19" fill="${fill}"/>`
+      default:
+        return ''
+    }
   }
   switch (style) {
     case 'bald':
@@ -27,8 +71,14 @@ function hair(look: Look, layer: 'back' | 'front'): string {
     case 'curly':
       return [[62, 62], [78, 42], [100, 34], [122, 42], [138, 62], [56, 86], [144, 86]]
         .map(([cx, cy]) => `<circle cx="${cx}" cy="${cy}" r="19" fill="${fill}"/>`).join('')
+    case 'messy':
+      return `<path d="M54 98 Q44 28 100 24 Q156 28 146 98 Q142 76 130 62 L122 76 L112 58 L101 74 L90 58 L80 74 L70 60 Q58 76 54 98Z" fill="${fill}"/>`
+    case 'crop':
+      return `<path d="M57 88 Q52 36 100 34 Q148 36 143 88 Q138 58 100 54 Q62 58 57 88Z" fill="${fill}"/>`
+    case 'bob':
+      return `<path d="M55 96 Q48 28 100 28 Q152 28 145 96 Q140 62 112 54 Q84 62 55 96Z" fill="${fill}"/>`
     case 'bun':
-      return `<circle cx="100" cy="20" r="17" fill="${fill}"/><path d="${TOP_HAIR}" fill="${fill}"/>`
+    case 'top-bun':
     case 'short':
     case 'long':
       return `<path d="${TOP_HAIR}" fill="${fill}"/>`
@@ -38,42 +88,78 @@ function hair(look: Look, layer: 'back' | 'front'): string {
 const STROKE = 'stroke="#111" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"'
 
 /** Capas del busto en un lienzo de 200 × 260, comunes al póster y a la foto de fichaje. */
-function layers(look: Look): { readonly behind: string; readonly head: string; readonly over: string } {
+function layers(c: Character): { readonly behind: string; readonly head: string; readonly over: string; readonly sad: boolean } {
+  const { look } = c
+  const detail = DETAILS[c.id] ?? {}
   const skin = hex(look.skin)
-  const shirt = look.tie === undefined ? '' : `
-    <path d="M78 180 L100 222 L122 180Z" fill="#f4f4f4"/>
-    <path d="M94 186 L106 186 L110 248 L100 262 L90 248Z" fill="${hex(look.tie)}"/>`
-  const glasses = look.glasses ? `
-    <rect x="68" y="88" width="28" height="20" rx="5" fill="none"/>
-    <rect x="104" y="88" width="28" height="20" rx="5" fill="none"/>
-    <path d="M96 96 L104 96" fill="none"/>` : ''
+  const top = hex(look.top)
+  const neck = detail.neck ?? (look.tie === undefined ? 'round' : 'shirt')
+  const wide = (svg: string): string => `<g transform="translate(100 0) scale(${look.wide ?? 1} 1) translate(-100 0)">${svg}</g>`
+  // Lo que asoma por el escote, por debajo del cuello.
+  const opening = {
+    suit: `<path d="M72 180 L100 228 L128 180Z" fill="#f4f4f4"/>`,
+    vest: `<path d="M74 180 L100 240 L126 180Z" fill="#f4f4f4"/>`,
+    open: `<path d="M82 180 L100 216 L118 180Z" fill="${skin}"/>`,
+    vneck: `<path d="M76 180 L100 224 L124 180Z" fill="${skin}"/>`,
+    shirt: '',
+    round: '',
+  }[neck]
+  const flaps = (fill: string): string => both(`<path d="M80 177 L100 198 L89 212 L74 188Z" fill="${fill}"/>`)
+  const collar = {
+    suit: both(`<path d="M72 181 L100 229 L84 248 L56 198Z" fill="${top}"/>`) + flaps('#f4f4f4'),
+    vest: flaps('#f4f4f4'),
+    open: both(`<path d="M80 177 L101 204 L84 216 L70 190Z" fill="${top}"/>`),
+    vneck: '',
+    shirt: flaps(top),
+    round: `<path d="M80 183 Q100 204 120 183" fill="none"/>`,
+  }[neck]
+  const tie = look.tie === undefined ? '' : detail.bowtie
+    ? both(`<path d="M100 204 L78 194 L78 216Z" fill="${hex(look.tie)}"/>`) + `<rect x="94" y="198" width="12" height="13" rx="3" fill="${hex(look.tie)}"/>`
+    : `<path d="M93 197 L107 197 L104 209 L96 209Z" fill="${hex(look.tie)}"/>
+       <path d="M96 209 L104 209 L110 250 L100 262 L90 250Z" fill="${hex(look.tie)}"/>`
+  const lanyard = detail.lanyard ? `
+    <path d="M85 183 L99 214 M115 183 L101 214" fill="none" stroke-width="2.5"/>
+    <rect x="88" y="212" width="24" height="18" rx="2" fill="#f4f4f4" stroke-width="2.5"/>
+    <rect x="91" y="216" width="8" height="10" fill="#4dabf7" stroke-width="1.5"/>
+    <path d="M102 218 h7 M102 223 h7" fill="none" stroke-width="1.5"/>` : ''
+  const cat = detail.cat
+    ? `<path d="M128 214 L131 204 L137 210 L143 210 L149 204 L152 214 Q152 226 140 226 Q128 226 128 214Z" fill="#8e5bd0" stroke-width="2"/>` : ''
+  const earrings = detail.earrings ? both(`<circle cx="55" cy="124" r="10" fill="none" stroke="#9aa0a6" stroke-width="4"/>`) : ''
+  const glasses = look.glasses || detail.glasses ? `
+    <rect x="66" y="87" width="30" height="22" rx="6" fill="#ffffff" fill-opacity="0.18" stroke-width="3"/>
+    <rect x="104" y="87" width="30" height="22" rx="6" fill="#ffffff" fill-opacity="0.18" stroke-width="3"/>
+    <path d="M96 96 L104 96 M66 95 L57 92 M134 95 L143 92" fill="none" stroke-width="3"/>` : ''
   const beard = look.beard
     ? `<path d="M62 118 Q64 160 100 171 Q136 160 138 118 Q120 134 100 131 Q80 134 62 118Z" fill="${hex(look.hair)}"/>` : ''
   const mustache = look.mustache
     ? `<path d="M82 132 Q100 120 118 132 L118 139 Q100 131 82 139Z" fill="${hex(look.hair)}"/>` : ''
+  const wrinkles = detail.wrinkles ? `
+    <path d="M82 66 Q100 61 118 66 M85 74 Q100 70 115 74 M66 108 L61 113 M134 108 L139 113 M80 132 Q76 140 80 148 M120 132 Q124 140 120 148" fill="none" stroke-width="1.8" opacity="0.55"/>
+    <path d="M70 44 L66 30 M82 38 L80 24 M100 36 L100 22 M118 38 L120 24 M130 44 L134 30" fill="none" stroke="${hex(look.hair)}" stroke-width="2"/>` : ''
   return {
     behind: `
-      ${hair(look, 'back')}
-      <g transform="translate(100 0) scale(${look.wide ?? 1} 1) translate(-100 0)">
-        <path d="M8 262 Q18 192 72 180 L128 180 Q182 192 192 262Z" fill="${hex(look.top)}"/>
-        ${shirt}
-      </g>
+      ${hair(look, detail, 'back')}
+      ${wide(`<path d="M8 262 Q18 192 72 180 L128 180 Q182 192 192 262Z" fill="${top}"/>${opening}`)}
       <path d="M84 148 L84 184 Q100 196 116 184 L116 148Z" fill="${skin}"/>
+      ${wide(`${collar}${tie}${lanyard}${cat}`)}
       <ellipse cx="56" cy="104" rx="7" ry="12" fill="${skin}"/>
-      <ellipse cx="144" cy="104" rx="7" ry="12" fill="${skin}"/>`,
+      <ellipse cx="144" cy="104" rx="7" ry="12" fill="${skin}"/>
+      ${earrings}`,
     head: `
       <path d="${HEAD}" fill="${skin}"/>
       <path d="M100 40 Q142 40 142 95 Q142 140 120 160 Q110 167 100 169Z" fill="#000" opacity="0.2" stroke="none"/>
       ${beard}
-      ${hair(look, 'front')}`,
+      ${hair(look, detail, 'front')}
+      ${wrinkles}`,
     over: `${mustache}${glasses}`,
+    sad: detail.sad === true,
   }
 }
 
 /** Busto ilustrado de trazo grueso y sombra dura, a partir del mismo `Look` que la figura 3D. */
 function bust(c: Character, index: number): string {
   const [top, bottom] = PANELS[index % PANELS.length] ?? ['#888888', '#444444']
-  const { behind, head, over } = layers(c.look)
+  const { behind, head, over, sad } = layers(c)
   return `
   <svg viewBox="0 0 200 260" preserveAspectRatio="xMidYMax slice" class="absolute inset-0 size-full" role="img" aria-label="${c.name}">
     <defs><linearGradient id="bg-${c.id}" x1="0" y1="0" x2="0" y2="1">
@@ -81,16 +167,19 @@ function bust(c: Character, index: number): string {
     </linearGradient></defs>
     <rect width="200" height="260" fill="url(#bg-${c.id})"/>
     <path d="M-40 260 L120 -20 L170 -20 L10 260Z" fill="#ffffff" opacity="0.12"/>
-    <g ${STROKE}>
+    <!-- Encogido hacia la base: las viñetas anchas recortan por arriba y se comían el pelo. -->
+    <g ${STROKE} transform="translate(100 262) scale(0.88) translate(-100 -262)">
       ${behind}
       ${head}
-      <ellipse cx="82" cy="99" rx="8" ry="4.5" fill="#fff" stroke-width="2"/>
-      <ellipse cx="118" cy="99" rx="8" ry="4.5" fill="#fff" stroke-width="2"/>
-      <circle cx="83" cy="99" r="3" fill="#111" stroke="none"/>
-      <circle cx="119" cy="99" r="3" fill="#111" stroke="none"/>
-      <path d="M71 87 L93 85 M107 85 L129 87" fill="none" stroke-width="5"/>
+      <ellipse cx="82" cy="99" rx="8.5" ry="6.5" fill="#fff" stroke-width="2"/>
+      <ellipse cx="118" cy="99" rx="8.5" ry="6.5" fill="#fff" stroke-width="2"/>
+      <circle cx="83" cy="${sad ? 100.5 : 99}" r="3.6" fill="#111" stroke="none"/>
+      <circle cx="119" cy="${sad ? 100.5 : 99}" r="3.6" fill="#111" stroke="none"/>
+      <circle cx="81.8" cy="97.6" r="1.2" fill="#fff" stroke="none"/>
+      <circle cx="117.8" cy="97.6" r="1.2" fill="#fff" stroke="none"/>
+      <path d="${sad ? 'M70 88 Q80 82 93 81 M107 81 Q120 82 130 88' : 'M71 86 Q82 81 93 85 M107 85 Q118 81 129 86'}" fill="none" stroke-width="3.5"/>
       <path d="M101 102 L96 123 L105 125" fill="none" stroke-width="2.5"/>
-      <path d="M88 142 Q100 147 113 141" fill="none" stroke-width="3"/>
+      <path d="${sad ? 'M88 146 Q100 140 112 146' : 'M88 141 Q100 149 113 141'}" fill="none" stroke-width="3"/>
       ${over}
     </g>
   </svg>`
@@ -99,11 +188,12 @@ function bust(c: Character, index: number): string {
 /**
  * Foto de fichaje: el personaje atrapado, triste, con el antifaz caído al cuello y su placa.
  * `capture` es el número de captura que sale en la placa. Solo datos estáticos propios.
+ * `fill`: ocupa todo su contenedor recortando, en vez de ajustarse a su alto.
  */
-export function mugshotHtml(c: Character, capture: number): string {
+export function mugshotHtml(c: Character, capture: number, fill = false): string {
   const { look } = c
   const skin = hex(look.skin)
-  const { behind, head, over } = layers(look)
+  const { behind, head, over } = layers(c)
   const marks = [0, 1, 2, 3, 4, 5, 6].map((i) => {
     const y = 24 + i * 34
     return `
@@ -116,7 +206,7 @@ export function mugshotHtml(c: Character, capture: number): string {
     <rect x="${x}" y="222" width="30" height="34" rx="11" fill="${skin}"/>
     <path d="M${x + 4} 232 h22 M${x + 4} 240 h22 M${x + 4} 248 h22" fill="none" stroke-width="2"/>`
   return `
-  <svg viewBox="0 0 240 300" class="h-full w-auto" role="img" aria-label="Foto de fichaje de ${c.name}">
+  <svg viewBox="0 0 240 300" ${fill ? 'preserveAspectRatio="xMidYMid slice" class="size-full"' : 'class="h-full w-auto"'} role="img" aria-label="Foto de fichaje de ${c.name}">
     <defs>
       <linearGradient id="mug-wall" x1="0" y1="0" x2="0" y2="1">
         <stop offset="0" stop-color="#e9e4d6"/><stop offset="1" stop-color="#b9b3a2"/>
@@ -178,16 +268,18 @@ export function mugshotHtml(c: Character, capture: number): string {
 
 /** Póster de inicio: viñetas con bordes negros y el logo en el centro. Solo datos estáticos propios. */
 export function posterHtml(): string {
+  // Al pasar el cursor, la viñeta enseña la foto de fichaje del personaje.
   const panels = CHARACTERS.map((c, i) => `
-    <div class="relative overflow-hidden">
+    <div class="group relative overflow-hidden">
       ${bust(c, i)}
-      <span class="ink absolute bottom-1 left-2 text-sm md:text-2xl">${c.name.toUpperCase()}</span>
+      <div class="absolute inset-0 opacity-0 transition-opacity duration-200 group-hover:opacity-100">${mugshotHtml(c, i + 1, true)}</div>
+      <span class="ink absolute bottom-1 left-2 text-sm transition-opacity group-hover:opacity-0 md:text-2xl">${c.name.toUpperCase()}</span>
     </div>`).join('')
   return `
     ${panels}
-    <div class="ink col-span-2 col-start-3 row-start-2 flex portrait:col-start-1 portrait:row-start-3 flex-col items-center justify-center bg-black text-center leading-none">
-      <span class="text-[min(4vw,5vh)] tracking-widest text-white">THE OFFICE</span>
+    <div class="ink col-span-2 col-start-3 row-start-2 flex portrait:col-start-1 portrait:row-start-3 flex-col items-center justify-center bg-[#0f1838] text-center leading-none">
+      <span class="text-[min(5.2vw,6.5vh)] text-yellow-300 italic">THREAT LEVEL:</span>
       <span class="text-[min(11vw,13vh)] text-emerald-400">THEFT</span>
-      <span class="mt-2 animate-pulse text-[min(3vw,3.5vh)] text-yellow-300">ENTER O TOCA PARA EMPEZAR</span>
+      <span class="mt-2 animate-pulse text-[min(2.6vw,3.2vh)] text-yellow-400">ENTER O TOCA PARA EMPEZAR</span>
     </div>`
 }
