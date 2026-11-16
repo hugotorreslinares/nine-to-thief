@@ -54,7 +54,7 @@ export const LEVELS: readonly LevelKind[] = [
       box(0xf5f5f5, [0.05, 0.07, 0.03], [0.085, 0.07, 0]),
       cyl(0x4a2c17, [0.1, 0.01, 0.1], [0, 0.141, 0]),
     ],
-    places: ['michael', 'stanley', 'kevin', 'creed', { x: 31.4, y: 0.9, z: 10.8 }, { x: 31.4, y: 0.9, z: 12.2 }, { x: 29, y: 0.75, z: 12.5 }],
+    places: ['michael', 'stanley', 'kevin', 'creed', { x: 20.3, y: 0.9, z: 6.95 }, { x: 22.7, y: 0.9, z: 6.95 }, { x: 26.4, y: 0.75, z: 8.2 }], // + mesón y mesita de la cocina
   },
   {
     plural: 'mouse', slot: [-0.12, 0.28],
@@ -89,11 +89,11 @@ export const LEVELS: readonly LevelKind[] = [
     parts: [box(0x7a4a2a, [0.24, 0.19, 0.03], [0, 0.095, 0]), box(0x9fd3ff, [0.19, 0.14, 0.035], [0, 0.095, 0])],
     places: [
       'pam', 'michael',
-      { x: 3.2, y: 0.7, z: 0.45 }, // aparador de la sala de reuniones
-      { x: 9.2, y: 1.2, z: 0.65 }, { x: 10.8, y: 1.2, z: 0.65 }, // archivadores
-      { x: 2.6, y: 0.75, z: 4.5 }, // mesa de reuniones
-      { x: 25.5, y: 0.75, z: 19.5 }, // comedor
-      { x: 4.5, y: 1.7, z: 9.5 }, // estante de Michael
+      { x: 13, y: 0.7, z: 0.45 }, // aparador de la sala de reuniones
+      { x: 13.2, y: 1.2, z: 5.2 }, { x: 14.8, y: 1.2, z: 5.2 }, // archivadores
+      { x: 12.4, y: 0.75, z: 2.7 }, // mesa de reuniones
+      { x: 33, y: 0.75, z: 3.5 }, // comedor
+      { x: 3.5, y: 1.7, z: 2 }, // estante de Michael
     ],
   },
   {
@@ -105,10 +105,10 @@ export const LEVELS: readonly LevelKind[] = [
     ],
     places: [
       'michael', 'dwight', 'jim', 'pam',
-      { x: 3.5, y: 1.7, z: 9.5 }, // estante de Michael
-      { x: 5.4, y: 0.75, z: 4.5 }, // mesa de reuniones
-      { x: 4.8, y: 0.7, z: 0.45 }, // aparador
-      { x: 16.5, y: 1.8, z: 8.5 }, // armario alto
+      { x: 3.5, y: 1.7, z: 2.9 }, // estante de Michael
+      { x: 15.2, y: 0.75, z: 2.7 }, // mesa de reuniones
+      { x: 14.6, y: 0.7, z: 0.45 }, // aparador
+      { x: 9, y: 1.8, z: 17.1 }, // armario alto
     ],
   },
 ]

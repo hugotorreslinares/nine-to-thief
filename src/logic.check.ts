@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { existsSync, readFileSync } from 'node:fs'
 import { decode, encode, parseClaim, parseEntry } from '../api/scores.ts'
 import { POST } from '../api/play.ts'
+import { CHAIRS, CHARACTERS, FURNITURE, MAP, OBJECTS, ROUTES, SPAWN, WALLS } from './data.ts'
 import { COUNTS } from './levels.ts'
 import { FRESH, MAX_STARS, caught, steal, type Progress } from './progress.ts'
 import { box, canSee, rayDistance, resolveCircle, turnToward } from './logic.ts'
@@ -34,6 +35,31 @@ assert.equal(typeof parseClaim({ name: 'Ana', token: 'corto' }), 'string', 'rech
 assert.equal(typeof parseEntry({ name: '<b>x</b>', token, level: 2, seconds: 10 }), 'string', 'rechaza HTML en el apodo')
 assert.equal(typeof parseEntry({ name: 'Ana', token, level: 2.5, seconds: 10 }), 'string', 'rechaza nivel no entero')
 assert.equal(typeof parseEntry({ name: 'Ana', token, level: 500, seconds: 10 }), 'string', 'rechaza nivel imposible')
+
+// ---------- Mapa ----------
+
+const solid = [...WALLS, ...FURNITURE.map((f) => f.box)]
+const inside = (pt: { x: number; z: number }, b: { minX: number; maxX: number; minZ: number; maxZ: number }, pad = 0): boolean =>
+  pt.x > b.minX - pad && pt.x < b.maxX + pad && pt.z > b.minZ - pad && pt.z < b.maxZ + pad
+ROUTES.forEach((route, r) => route.forEach((from, i) => {
+  const to = route[(i + 1) % route.length] ?? from
+  const dist = Math.hypot(to.x - from.x, to.z - from.z)
+  assert.ok(rayDistance(from.x, from.z, (to.x - from.x) / dist, (to.z - from.z) / dist, dist, solid) >= dist, `ruta ${r}, tramo ${i}: atraviesa algo`)
+}))
+for (const pt of [SPAWN, ...CHAIRS, ...CHARACTERS.map((c) => c.home)]) {
+  assert.ok(pt.x > 0 && pt.x < MAP.w && pt.z > 0 && pt.z < MAP.d && !solid.some((b) => inside(pt, b, 0.2)), `punto dentro de un obstáculo: ${pt.x}, ${pt.z}`)
+}
+// Todo objeto está al alcance (1,5 m) de algún sitio donde cabe el jugador.
+for (const o of OBJECTS) {
+  let reachable = false
+  for (let a = 0; a < 32 && !reachable; a++) {
+    for (const d of [0.6, 0.9, 1.2, 1.45]) {
+      const pt = { x: o.x + Math.cos((a * Math.PI) / 16) * d, z: o.z + Math.sin((a * Math.PI) / 16) * d }
+      if (!solid.some((b) => inside(pt, b, 0.35))) reachable = true
+    }
+  }
+  assert.ok(reachable, `objeto inalcanzable: nivel ${o.level}, n.º ${o.index}`)
+}
 
 // ---------- Progresión ----------
 

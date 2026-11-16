@@ -391,7 +391,7 @@ ui.innerHTML = `
       <div id="timer" class="text-4xl md:text-6xl"></div>
       <button id="menuBtn" class="pointer-events-auto cursor-pointer rounded border-2 border-black bg-neutral-800/80 px-3 py-1 text-sm">MENÚ</button>
     </div>
-    <canvas id="radar" width="192" height="132" class="absolute bottom-16 left-10 rotate-45 rounded border-2 border-black bg-black/60 pointer-coarse:top-24 pointer-coarse:bottom-auto pointer-coarse:left-0 pointer-coarse:scale-50"></canvas>
+    <canvas id="radar" width="192" height="90" class="absolute bottom-16 left-10 rotate-45 rounded border-2 border-black bg-black/60 pointer-coarse:top-24 pointer-coarse:bottom-auto pointer-coarse:left-0 pointer-coarse:scale-50"></canvas>
     <div id="abilityBox" class="ink pointer-events-auto absolute right-4 bottom-4 cursor-pointer touch-none text-right pointer-coarse:bottom-36">
       <div id="abilityName" class="text-xl text-sky-300"></div>
       <div id="abilityState" class="text-3xl"></div>
