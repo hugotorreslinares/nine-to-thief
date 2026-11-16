@@ -46,6 +46,15 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black" />
     <meta name="apple-mobile-web-app-title" content="Threat Level" />
     <meta name="theme-color" content="#0a0a0a" />
+    <!-- Vercel Web Analytics: visitas, países y de dónde llegan. Sin cookies. -->
+    <script>
+      window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments) }
+      // La URL del art toy es una credencial: se registra solo como /play, sin el código.
+      window.va('beforeSend', function (event) {
+        return Object.assign({}, event, { url: event.url.replace(/\/play\/.*$/, '/play') })
+      })
+    </script>
+    <script defer src="/_vercel/insights/script.js"></script>
   </head>
   <body class="font-gta m-0 touch-manipulation overflow-hidden overscroll-none bg-neutral-950 text-white select-none">
     <canvas id="game" class="block h-dvh w-screen touch-none"></canvas>
