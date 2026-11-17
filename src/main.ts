@@ -448,14 +448,14 @@ ui.innerHTML = `
       <button id="waitClose" type="button" class="font-gta cursor-pointer rounded bg-neutral-700 px-4 py-1 text-lg text-white">${t('CERRAR')}</button>
     </form>
   </dialog>
-  <div id="padPoster" class="pointer-events-none absolute right-2 bottom-2 z-20 hidden w-40 flex-col items-center gap-1 rounded bg-white p-2 text-center font-sans text-xs leading-tight text-black">
+  <div id="padPoster" class="pointer-events-none absolute bottom-2 left-2 z-20 hidden w-40 flex-col items-center gap-1 rounded bg-white p-2 text-center font-sans text-xs leading-tight text-black">
     <img class="padQr size-32 [image-rendering:pixelated]" alt="" />
     <span class="padText"></span>
     <b class="padCode text-base tracking-widest"></b>
   </div>
-  <div id="poster" class="pointer-events-auto absolute inset-0 z-10 grid cursor-pointer grid-cols-6 grid-rows-3 gap-1 bg-black p-1 md:gap-2 md:p-2 portrait:grid-cols-3 portrait:grid-rows-6">${posterHtml()}</div>
+  <div id="poster" class="pointer-events-auto absolute inset-0 z-10 cursor-pointer overflow-hidden bg-[repeating-conic-gradient(from_0deg_at_72%_50%,#ff8a1f_0_7.5deg,#c2410c_7.5deg_15deg)] portrait:bg-[repeating-conic-gradient(from_0deg_at_50%_30%,#ff8a1f_0_7.5deg,#c2410c_7.5deg_15deg)]">${posterHtml()}</div>
   <div id="menu" class="pointer-events-auto absolute inset-0 flex flex-col items-center gap-4 overflow-y-auto bg-black/75 p-3 md:p-6">
-    <h1 class="ink text-center text-4xl text-yellow-300 md:text-7xl">THREAT LEVEL: <span class="text-emerald-400">THEFT</span></h1>
+    <h1 class="ink text-center text-4xl text-yellow-300 md:text-7xl">NINE TO <span class="text-emerald-400">THIEF</span></h1>
     <p class="ink text-center text-base text-neutral-200 md:text-xl">${t('Elige a tu ladrón. Roba sin que te vean mientras lo coges. Un minuto por nivel.')}</p>
     <div id="padMenu" class="hidden items-center gap-3 rounded-lg bg-white p-2 font-sans text-sm text-black">
       <img class="padQr size-24 [image-rendering:pixelated]" alt="" />
@@ -525,7 +525,7 @@ ui.innerHTML = `
       <a href="/tv/" class="rounded-full border-2 border-black bg-emerald-500 px-4 py-2 text-base font-bold text-white hover:brightness-110">📺 ${t('Descargar para Android TV')}</a>
       <p>${t('Un juego y una colección de art toys. Sígueme en Instagram para ver los próximos personajes.')}</p>
       <p class="text-xs text-neutral-500">
-        ${t('Código abierto en')} <a href="https://github.com/hugotorreslinares/the-office-theft" target="_blank" rel="noopener noreferrer" class="text-sky-300 underline hover:text-sky-200">GitHub</a>
+        ${t('Código abierto en')} <a href="https://github.com/hugotorreslinares/nine-to-thief" target="_blank" rel="noopener noreferrer" class="text-sky-300 underline hover:text-sky-200">GitHub</a>
         · ${t('Proyecto de fans sin ánimo de lucro, no afiliado a la serie ni a sus dueños.')}
       </p>
     </footer>
@@ -866,7 +866,7 @@ async function mugshotCard(svg: string): Promise<Blob> {
   ctx.textAlign = 'center'
   ctx.font = '58px Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif'
   ctx.fillStyle = '#fde047'
-  ctx.fillText('THREAT LEVEL: THEFT', 360, 966)
+  ctx.fillText('NINE TO THIEF', 360, 966)
   ctx.font = '30px Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif'
   ctx.fillStyle = '#34d399'
   ctx.fillText(`${t('¿ME SUPERAS?')}  ${location.host}`, 360, 1012)
@@ -883,8 +883,8 @@ let shot: Promise<Blob> | undefined
 
 async function share(): Promise<void> {
   if (shot) {
-    const text = `${t('Me ficharon robando {things} en Threat Level: Theft. ¿Duras más que yo?', { things: thingsOf(level) })} ${SHARE_URL}`
-    const file = new File([await shot], 'threat-level-theft.png', { type: 'image/png' })
+    const text = `${t('Me ficharon robando {things} en Nine to Thief. ¿Duras más que yo?', { things: thingsOf(level) })} ${SHARE_URL}`
+    const file = new File([await shot], 'nine-to-thief.png', { type: 'image/png' })
     if (navigator.canShare?.({ files: [file] })) return navigator.share({ files: [file], text })
     // Sin hoja de compartir con archivos (escritorio): se descarga la imagen y se copia el texto.
     const link = document.createElement('a')
@@ -896,8 +896,8 @@ async function share(): Promise<void> {
     return navigator.clipboard.writeText(text)
   }
   const text = rank
-    ? t('Llegué al nivel {level} y voy #{rank} en Threat Level: Theft. ¿Me superas?', { level: bestLevel, rank })
-    : t('Llegué al nivel {level} en Threat Level: Theft. ¿Me superas?', { level: bestLevel })
+    ? t('Llegué al nivel {level} y voy #{rank} en Nine to Thief. ¿Me superas?', { level: bestLevel, rank })
+    : t('Llegué al nivel {level} en Nine to Thief. ¿Me superas?', { level: bestLevel })
   const url = `${SHARE_URL}?reto=${bestLevel}.${bestSeconds}`
   if (navigator.share) return navigator.share({ text, url })
   await navigator.clipboard.writeText(`${text} ${url}`)

@@ -1,14 +1,8 @@
-import { CHARACTERS, type Character, type Look } from './data.ts'
+import type { Character, Look } from './data.ts'
 import { TV } from './device.ts'
 import { t } from './i18n.ts'
 
 const hex = (n: number): string => `#${n.toString(16).padStart(6, '0')}`
-
-/** Fondos saturados de cada viñeta: [arriba, abajo]. */
-const PANELS: readonly (readonly [string, string])[] = [
-  ['#ff9f1a', '#d9480f'], ['#22b8cf', '#0b7285'], ['#f06595', '#a61e4d'], ['#ffd43b', '#e67700'],
-  ['#9775fa', '#5f3dc4'], ['#51cf66', '#2b8a3e'], ['#4dabf7', '#1864ab'], ['#ff6b6b', '#c92a2a'],
-]
 
 const HEAD = 'M58 95 Q58 40 100 40 Q142 40 142 95 Q142 140 120 160 Q100 172 80 160 Q58 140 58 95Z'
 const TOP_HAIR = 'M55 94 Q50 28 100 28 Q150 28 145 94 Q136 60 100 57 Q64 60 55 94Z'
@@ -158,35 +152,6 @@ function layers(c: Character): { readonly behind: string; readonly head: string;
   }
 }
 
-/** Busto ilustrado de trazo grueso y sombra dura, a partir del mismo `Look` que la figura 3D. */
-function bust(c: Character, index: number): string {
-  const [top, bottom] = PANELS[index % PANELS.length] ?? ['#888888', '#444444']
-  const { behind, head, over, sad } = layers(c)
-  return `
-  <svg viewBox="0 0 200 260" preserveAspectRatio="xMidYMax slice" class="absolute inset-0 size-full" role="img" aria-label="${c.name}">
-    <defs><linearGradient id="bg-${c.id}" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="${top}"/><stop offset="1" stop-color="${bottom}"/>
-    </linearGradient></defs>
-    <rect width="200" height="260" fill="url(#bg-${c.id})"/>
-    <path d="M-40 260 L120 -20 L170 -20 L10 260Z" fill="#ffffff" opacity="0.12"/>
-    <!-- Encogido hacia la base: las viñetas anchas recortan por arriba y se comían el pelo. -->
-    <g ${STROKE} transform="translate(100 262) scale(0.88) translate(-100 -262)">
-      ${behind}
-      ${head}
-      <ellipse cx="82" cy="99" rx="8.5" ry="6.5" fill="#fff" stroke-width="2"/>
-      <ellipse cx="118" cy="99" rx="8.5" ry="6.5" fill="#fff" stroke-width="2"/>
-      <circle cx="83" cy="${sad ? 100.5 : 99}" r="3.6" fill="#111" stroke="none"/>
-      <circle cx="119" cy="${sad ? 100.5 : 99}" r="3.6" fill="#111" stroke="none"/>
-      <circle cx="81.8" cy="97.6" r="1.2" fill="#fff" stroke="none"/>
-      <circle cx="117.8" cy="97.6" r="1.2" fill="#fff" stroke="none"/>
-      <path d="${sad ? 'M70 88 Q80 82 93 81 M107 81 Q120 82 130 88' : 'M71 86 Q82 81 93 85 M107 85 Q118 81 129 86'}" fill="none" stroke-width="3.5"/>
-      <path d="M101 102 L96 123 L105 125" fill="none" stroke-width="2.5"/>
-      <path d="${sad ? 'M88 146 Q100 140 112 146' : 'M88 141 Q100 149 113 141'}" fill="none" stroke-width="3"/>
-      ${over}
-    </g>
-  </svg>`
-}
-
 /**
  * Foto de fichaje: el personaje atrapado, triste, con el antifaz caído al cuello y su placa.
  * `capture` es el número de captura que sale en la placa. Solo datos estáticos propios.
@@ -268,20 +233,15 @@ export function mugshotHtml(c: Character, capture: number, fill = false): string
   </svg>`
 }
 
-/** Póster de inicio: viñetas con bordes negros y el logo en el centro. Solo datos estáticos propios. */
+/** Portada: el art toy como héroe sobre rayos de color, con el título. Solo datos estáticos propios. */
 export function posterHtml(): string {
-  // Al pasar el cursor, la viñeta enseña la foto de fichaje del personaje.
-  const panels = CHARACTERS.map((c, i) => `
-    <div class="group relative overflow-hidden">
-      ${bust(c, i)}
-      <div class="absolute inset-0 opacity-0 transition-opacity duration-200 group-hover:opacity-100">${mugshotHtml(c, i + 1, true)}</div>
-      <span class="ink absolute bottom-1 left-2 text-sm transition-opacity group-hover:opacity-0 md:text-2xl">${c.name.toUpperCase()}</span>
-    </div>`).join('')
+  const outline = '[-webkit-text-stroke:0.07em_black] [paint-order:stroke_fill]'
   return `
-    ${panels}
-    <div class="ink col-span-2 col-start-3 row-start-2 flex portrait:col-start-1 portrait:row-start-3 flex-col items-center justify-center bg-[#0f1838] text-center leading-none">
-      <span class="text-[min(5.2vw,6.5vh)] text-yellow-300 italic">THREAT LEVEL:</span>
-      <span class="text-[min(11vw,13vh)] text-emerald-400">THEFT</span>
-      <span class="mt-2 animate-pulse text-[min(2.6vw,3.2vh)] text-yellow-400">${TV ? t('OK PARA EMPEZAR') : t('ENTER O TOCA PARA EMPEZAR')}</span>
+    <img src="/toy.webp" alt="" class="absolute right-[8%] bottom-0 h-[96%] max-w-[46%] object-contain object-bottom drop-shadow-[10px_12px_0_rgb(0_0_0/0.35)] portrait:top-[3%] portrait:right-1/2 portrait:bottom-auto portrait:h-[54%] portrait:max-w-[80%] portrait:translate-x-1/2" />
+    <div class="ink absolute top-1/2 left-[5%] flex -translate-y-1/2 flex-col leading-[0.9] portrait:inset-x-0 portrait:top-auto portrait:bottom-[5%] portrait:left-0 portrait:translate-y-0 portrait:items-center portrait:text-center">
+      <span class="text-[min(8vw,11vh)] text-white ${outline}">NINE TO</span>
+      <span class="text-[min(19vw,27vh)] text-yellow-300 ${outline}">THIEF</span>
+      <span class="mt-3 text-[min(2.8vw,3.8vh)] text-white ${outline}">${t('ROBA LA OFICINA SIN QUE TE VEAN')}</span>
+      <span class="mt-4 animate-pulse text-[min(2.6vw,3.4vh)] text-yellow-300 ${outline}">${TV ? t('OK PARA EMPEZAR') : t('ENTER O TOCA PARA EMPEZAR')}</span>
     </div>`
 }

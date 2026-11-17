@@ -1,4 +1,4 @@
-package dev.threatleveltheft.app;
+package dev.ninetothief.app;
 
 import android.os.Bundle;
 import android.view.KeyEvent;

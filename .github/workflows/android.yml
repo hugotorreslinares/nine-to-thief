@@ -29,7 +29,7 @@ jobs:
         working-directory: android
       - uses: actions/upload-artifact@v4
         with:
-          name: threat-level-theft-apk
+          name: nine-to-thief-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
       # La web enlaza siempre a esta release (/apk), así que el enlace no cambia con cada versión.
@@ -38,8 +38,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp android/app/build/outputs/apk/debug/app-debug.apk threat-level-theft.apk
+          cp android/app/build/outputs/apk/debug/app-debug.apk nine-to-thief.apk
           gh release view tv >/dev/null 2>&1 || gh release create tv --latest=false \
             --title "Android TV" \
-            --notes "APK para Android TV de Threat Level: Theft, un juego de fans gratuito. Instrucciones: https://the-office-theft.vercel.app/tv/"
-          gh release upload tv threat-level-theft.apk --clobber
+            --notes "APK para Android TV de Nine to Thief, un juego gratuito. Instrucciones: https://nine-to-thief.vercel.app/tv/"
+          gh release upload tv nine-to-thief.apk --clobber

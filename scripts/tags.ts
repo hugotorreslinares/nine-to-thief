@@ -4,7 +4,7 @@
 import { createHash, randomBytes } from 'node:crypto'
 import { appendFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs'
 
-const BASE = 'https://the-office-theft.vercel.app/play/'
+const BASE = 'https://nine-to-thief.vercel.app/play/'
 const HASHES = new URL('../api/_tags.ts', import.meta.url)
 const CSV = new URL('../nfc-tags.csv', import.meta.url)
 

@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Threat Level: Theft</string>
-    <string name="title_activity_main">Threat Level: Theft</string>
-    <string name="package_name">dev.threatleveltheft.app</string>
-    <string name="custom_url_scheme">dev.threatleveltheft.app</string>
+    <string name="app_name">Nine to Thief</string>
+    <string name="title_activity_main">Nine to Thief</string>
+    <string name="package_name">dev.ninetothief.app</string>
+    <string name="custom_url_scheme">dev.ninetothief.app</string>
 </resources>

@@ -20,7 +20,7 @@ const button = (id: string, label: string, style: string): string =>
 el<HTMLDivElement>('#pad').innerHTML = `
   <div class="flex h-full flex-col justify-between p-4 pb-8">
     <div class="ink flex items-center justify-between gap-2">
-      <span class="text-xl text-yellow-300">THREAT LEVEL: <span class="text-emerald-400">THEFT</span></span>
+      <span class="text-xl text-yellow-300">NINE TO <span class="text-emerald-400">THIEF</span></span>
       <span id="status" class="font-sans text-sm text-neutral-300"></span>
     </div>
     <form id="join" hidden class="flex items-center justify-center gap-2">

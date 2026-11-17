@@ -1,8 +1,8 @@
-# Threat Level: Theft
+# Nine to Thief
 
 Un juego de sigilo en el que te cuelas en una oficina para llevarte todo lo que puedas sin que tus compañeros te descubran. Elige a quién controlar, esquiva a quienes patrullan y aprovecha la habilidad especial de tu personaje: tienes **un minuto por nivel** para completar el robo, aunque algunas habilidades pueden darte más tiempo.
 
-**Juega gratis:** [the-office-theft.vercel.app](https://the-office-theft.vercel.app)
+**Juega gratis:** [nine-to-thief.vercel.app](https://nine-to-thief.vercel.app)
 
 Funciona en el navegador de escritorio y en el celular; también puedes añadirlo a la pantalla de inicio.
 
@@ -62,7 +62,7 @@ Proyecto de fans sin ánimo de lucro, no afiliado a la serie ni a sus propietari
 App Capacitor en `android/` que abre el juego publicado (`server.url` en `capacitor.config.ts`), así que las actualizaciones web llegan sin recompilar el APK. El APK se compila en GitHub Actions (workflow **Android APK**):
 
 ```bash
-gh run download --name threat-level-theft-apk --dir release/android
+gh run download --name nine-to-thief-apk --dir release/android
 adb connect IP_DE_LA_TELE:5555
 adb install -r release/android/app-debug.apk
 ```

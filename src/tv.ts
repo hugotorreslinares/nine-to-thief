@@ -3,8 +3,8 @@ import './style.css'
 import { t } from './i18n.ts'
 
 const APK_URL = '/apk'
-const SHORT_URL = 'the-office-theft.vercel.app/apk'
-const REPO = 'https://github.com/hugotorreslinares/the-office-theft'
+const SHORT_URL = 'nine-to-thief.vercel.app/apk'
+const REPO = 'https://github.com/hugotorreslinares/nine-to-thief'
 
 const step = (n: number, text: string): string => `
   <li class="flex gap-3">
@@ -35,12 +35,12 @@ if (!root) throw new Error('Falta #tv en tv/index.html')
 root.innerHTML = `
   <header class="ink flex flex-col gap-1">
     <a href="/" class="text-sm text-sky-300 underline">← ${t('Volver al juego')}</a>
-    <h1 class="text-4xl text-yellow-300 md:text-6xl">THREAT LEVEL: <span class="text-emerald-400">THEFT</span></h1>
+    <h1 class="text-4xl text-yellow-300 md:text-6xl">NINE TO <span class="text-emerald-400">THIEF</span></h1>
     <p class="text-2xl">${t('JUEGA EN TU TELEVISOR')}</p>
   </header>
   <p class="font-sans text-lg text-neutral-200">${t('Roba objetos de la oficina sin que te vean, ahora en Android TV y Google TV. Gratis.')}</p>
   <a href="${APK_URL}" class="ink w-fit rounded-lg border-2 border-black bg-emerald-500 px-6 py-3 text-2xl hover:brightness-110">⬇ ${t('DESCARGAR APK')}</a>
-  <p class="-mt-3 font-sans text-sm text-neutral-400">threat-level-theft.apk · ${t('unos 5 MB')}</p>
+  <p class="-mt-3 font-sans text-sm text-neutral-400">nine-to-thief.apk · ${t('unos 5 MB')}</p>
   <section class="flex flex-col gap-3">
     <h2 class="ink text-2xl text-yellow-300">${t('CÓMO INSTALARLO')}</h2>
     <ol class="flex flex-col gap-3">${steps.map((text, i) => step(i + 1, text)).join('')}</ol>
