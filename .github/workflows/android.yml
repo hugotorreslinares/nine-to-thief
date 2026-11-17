@@ -6,6 +6,9 @@ on:
     paths-ignore: ['**.md']
   workflow_dispatch:
 
+permissions:
+  contents: write # publicar el APK en la release `tv`
+
 jobs:
   apk:
     runs-on: ubuntu-latest
@@ -29,3 +32,14 @@ jobs:
           name: threat-level-theft-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+      # La web enlaza siempre a esta release (/apk), así que el enlace no cambia con cada versión.
+      - name: Publicar APK en la release tv
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp android/app/build/outputs/apk/debug/app-debug.apk threat-level-theft.apk
+          gh release view tv >/dev/null 2>&1 || gh release create tv --latest=false \
+            --title "Android TV" \
+            --notes "APK para Android TV de Threat Level: Theft, un juego de fans gratuito. Instrucciones: https://the-office-theft.vercel.app/tv/"
+          gh release upload tv threat-level-theft.apk --clobber

@@ -1,4 +1,5 @@
 {
+  "redirects": [{ "source": "/apk", "destination": "https://github.com/hugotorreslinares/the-office-theft/releases/download/tv/threat-level-theft.apk", "permanent": false }],
   "rewrites": [{ "source": "/play/:code", "destination": "/" }],
   "headers": [
     {
