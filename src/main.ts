@@ -371,6 +371,8 @@ interface Player {
   stealing: boolean
   readonly ring: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>
   readonly sweat: THREE.Sprite
+  /** Nombre sobre la cabeza, solo cuando juegan dos. */
+  readonly tag: THREE.Sprite
 }
 
 function makePlayer(slot: 0 | 1, color: number, char: Character): Player {
@@ -385,7 +387,35 @@ function makePlayer(slot: 0 | 1, color: number, char: Character): Player {
   sweat.renderOrder = 10
   sweat.visible = false
   scene.add(sweat)
-  return { slot, color, char, x: SPAWN.x, z: SPAWN.z, dir: 0, grab: 0, cooldown: 0, cloakT: 0, dashT: 0, dashK: 1, stealing: false, ring, sweat }
+  const art = document.createElement('canvas')
+  art.width = 256
+  art.height = 64
+  const tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(art), transparent: true, depthTest: false }))
+  tag.scale.set(1.3, 0.325, 1)
+  tag.renderOrder = 11
+  tag.visible = false
+  scene.add(tag)
+  return { slot, color, char, x: SPAWN.x, z: SPAWN.z, dir: 0, grab: 0, cooldown: 0, cloakT: 0, dashT: 0, dashK: 1, stealing: false, ring, sweat, tag }
+}
+
+/** Escribe "J1 · Nombre" en la etiqueta del jugador, con el color de su anillo. */
+function drawTag(p: Player): void {
+  const map = p.tag.material.map
+  const art = map?.image
+  if (!(art instanceof HTMLCanvasElement)) throw new Error('Etiqueta sin lienzo')
+  const ctx = art.getContext('2d')
+  if (!ctx || !map) throw new Error('Sin contexto 2D para la etiqueta')
+  ctx.clearRect(0, 0, art.width, art.height)
+  ctx.fillStyle = 'rgba(0,0,0,0.75)'
+  ctx.beginPath()
+  ctx.roundRect(4, 4, art.width - 8, art.height - 8, 20)
+  ctx.fill()
+  ctx.font = '40px Anton, Impact, sans-serif'
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillStyle = `#${p.color.toString(16).padStart(6, '0')}`
+  ctx.fillText(`J${p.slot + 1} · ${p.char.name.toUpperCase()}`, art.width / 2, art.height / 2 + 2)
+  map.needsUpdate = true
 }
 
 type Phase = 'menu' | 'playing' | 'won' | 'busted'
@@ -502,6 +532,10 @@ ui.innerHTML = `
     <div id="abilityBox" class="ink pointer-events-auto absolute right-4 bottom-4 cursor-pointer touch-none text-right pointer-coarse:bottom-36">
       <div id="abilityName" class="text-xl text-sky-300"></div>
       <div id="abilityState" class="text-3xl"></div>
+    </div>
+    <div id="pauseBox" class="ink hidden absolute inset-x-0 top-1/3 z-30 flex-col items-center gap-2 bg-black/70 py-6 text-center">
+      <div id="pauseTitle" class="text-4xl text-yellow-300 md:text-6xl"></div>
+      <div id="pauseText" class="text-xl md:text-3xl"></div>
     </div>
     <div id="ability2Box" class="ink hidden absolute right-4 bottom-24 text-right">
       <div id="ability2Name" class="text-lg text-cyan-300"></div>
@@ -680,6 +714,9 @@ const dom = {
   grab: el<HTMLProgressElement>('#grab'),
   grab2: el<HTMLProgressElement>('#grab2'),
   ability2Box: el<HTMLDivElement>('#ability2Box'),
+  pauseBox: el<HTMLDivElement>('#pauseBox'),
+  pauseTitle: el<HTMLDivElement>('#pauseTitle'),
+  pauseText: el<HTMLDivElement>('#pauseText'),
   ability2Name: el<HTMLDivElement>('#ability2Name'),
   ability2State: el<HTMLDivElement>('#ability2State'),
   roster: el<HTMLDivElement>('#roster'),
@@ -1107,7 +1144,9 @@ function startLevel(): void {
     Object.assign(p, { x: s.x, z: s.z, dir: -Math.PI / 2, grab: 0, cooldown: 0, cloakT: 0, dashT: 0, dashK: 1 })
     p.ring.visible = crew.includes(p)
     p.sweat.visible = false
+    padSeen[p.slot] = false
   }
+  pauseT = 0
   const plays = (c: Character): boolean => crew.some((p) => p.char === c)
 
   const patrollers = PATROL_ORDER.filter((id) => !crew.some((p) => p.char.id === id)).slice(0, cfg.patrols)
@@ -1144,6 +1183,7 @@ function startLevel(): void {
   dom.mission.textContent = t('NIVEL {n} · ROBA {total} {things}', { n: level, total, things: thingsOf(level).toUpperCase() })
   dom.stars.textContent = starsText()
   dom.abilityName.textContent = t(player.char.ability.name)
+  for (const p of crew) drawTag(p)
   dom.ability2Box.classList.toggle('hidden', !second)
   dom.ability2Name.textContent = t(partner.char.ability.name)
   dom.menu.classList.add('hidden')
@@ -1407,6 +1447,31 @@ function padOk(): void {
   if (focused instanceof HTMLElement) focused.click()
 }
 
+/** Celular que ya jugaba este nivel y dejó de enviar (se cayó la red o apagó la pantalla). */
+const PAD_QUIET_MS = 3000
+/** Segundos que la partida espera a que vuelva antes de seguir sin él. */
+const PAUSE_GIVE_UP_S = 15
+const padSeen: [boolean, boolean] = [false, false]
+let pauseT = 0
+
+function padMissing(): Player | undefined {
+  for (const p of crew) {
+    const live = (remote?.quietMs(p.slot) ?? Infinity) < PAD_QUIET_MS
+    if (live) padSeen[p.slot] = true
+    else if (padSeen[p.slot]) return p
+  }
+  return undefined
+}
+
+/** Cartel de pausa mientras falta un celular. */
+function showPause(absent: Player | undefined): void {
+  dom.pauseBox.classList.toggle('hidden', absent === undefined)
+  dom.pauseBox.classList.toggle('flex', absent !== undefined)
+  if (!absent) return
+  dom.pauseTitle.textContent = t('PARTIDA EN PAUSA')
+  dom.pauseText.textContent = t('Jugador {n} desconectado. Esperando… {s} s', { n: absent.slot + 1, s: Math.max(0, Math.ceil(PAUSE_GIVE_UP_S - pauseT)) })
+}
+
 function pollPad(): void {
   for (const slot of [0, 1] as const) {
     const buttons = remote?.source(slot)?.buttons ?? 0
@@ -1639,6 +1704,8 @@ function update(dt: number): void {
   for (const p of crew) {
     p.sweat.visible = spotted.has(p)
     p.sweat.position.set(p.x, 2 + Math.sin(clock * 12) * 0.05, p.z)
+    p.tag.visible = crew.length > 1
+    p.tag.position.set(p.x, 2.5, p.z)
   }
 
   for (const { p, grabbing } of plans) p.grab = grabbing ? p.grab + dt / (BASE_GRAB * (p.char.grabTime ?? 1)) : 0
@@ -1702,10 +1769,29 @@ function frame(now: number): void {
   const dt = Math.min((now - last) / 1000, 0.05)
   last = now
   pollPad()
-  if (phase !== 'playing') for (const p of players) p.sweat.visible = false
+  if (phase !== 'playing') {
+    for (const p of players) {
+      p.sweat.visible = false
+      p.tag.visible = false
+    }
+    showPause(undefined)
+  }
   let wantZoom = phase === 'won' || phase === 'busted' ? zoom : 1
   if (phase === 'playing') {
-    update(dt)
+    // Si un celular se cae, el reloj y los vigilantes esperan; pasado un rato, sigue sin él.
+    const absent = padMissing()
+    if (absent) {
+      pauseT += dt
+      stopStealing()
+      if (pauseT >= PAUSE_GIVE_UP_S) {
+        padSeen[absent.slot] = false
+        pauseT = 0
+      }
+    } else {
+      pauseT = 0
+      update(dt)
+    }
+    if (phase === 'playing') showPause(absent)
     drawHud()
     // Cámara en el punto medio de quienes juegan; con dos se aleja lo justo para que quepan.
     const [a, b] = crew

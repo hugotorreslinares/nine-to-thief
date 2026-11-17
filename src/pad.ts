@@ -165,16 +165,24 @@ addEventListener('gesturestart', (e) => e.preventDefault())
 document.addEventListener('contextmenu', (e) => e.preventDefault())
 
 // Conexión
+/** Reintentos seguidos tras perder la conexión; se reinician al conectar. Así un corte de red no obliga a recargar. */
+let attempts = 0
+const MAX_ATTEMPTS = 20
+const RETRY_MS = 2000
+
 function connect(code: string): void {
   status.textContent = t('Conectando con {code}…', { code })
   form.hidden = true
   const peer = new Peer()
   let failed = false
-  const fail = (text: string): void => {
+  const fail = (text: string, retry = true): void => {
     failed = true
     status.textContent = text
     form.hidden = false
     peer.destroy()
+    if (!retry || attempts >= MAX_ATTEMPTS) return
+    attempts += 1
+    setTimeout(() => connect(code), RETRY_MS)
   }
   peer.on('error', (err) => fail(err.type === 'peer-unavailable'
     ? t('No hay ningún juego con el código {code}', { code })
@@ -184,7 +192,7 @@ function connect(code: string): void {
     c.on('data', (data) => {
       const message = parseHostMessage(data)
       if (!message) return
-      if ('full' in message) return fail(t('Sala llena: ya hay 2 jugadores'))
+      if ('full' in message) return fail(t('Sala llena: ya hay 2 jugadores'), false)
       if ('picks' in message) {
         picks = message.picks
         return renderRoster()
@@ -197,6 +205,7 @@ function connect(code: string): void {
     })
     c.on('open', () => {
       conn = c
+      attempts = 0
       status.textContent = t('Conectado ✓')
       send()
     })
@@ -215,6 +224,7 @@ function connect(code: string): void {
 form.addEventListener('submit', (e) => {
   e.preventDefault()
   const code = codeInput.value.trim().toUpperCase()
+  attempts = 0
   if (/^[A-Z0-9]{5}$/.test(code)) connect(code)
   else status.textContent = t('El código tiene 5 letras o números')
 })

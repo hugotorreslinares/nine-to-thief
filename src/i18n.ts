@@ -75,6 +75,8 @@ export const EN: Readonly<Record<string, string>> = {
   'Conectado ✓': 'Connected ✓',
   'Sala llena: ya hay 2 jugadores': 'Room full: there are already 2 players',
   'JUGADOR {n}': 'PLAYER {n}',
+  'PARTIDA EN PAUSA': 'GAME PAUSED',
+  'Jugador {n} desconectado. Esperando… {s} s': 'Player {n} disconnected. Waiting… {s} s',
   'Ese personaje ya lo eligió el jugador 2': 'Player 2 already picked that character',
   'ELEGIR PERSONAJE': 'PICK CHARACTER',
   'Elige tu personaje': 'Pick your character',

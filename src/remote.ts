@@ -116,6 +116,12 @@ export class Remote {
     for (const pad of this.pads) pad?.conn.send({ picks } satisfies HostMessage)
   }
 
+  /** Milisegundos desde el último mensaje de ese celular; infinito si no hay ninguno. */
+  quietMs(slot: number): number {
+    const pad = this.pads[slot]
+    return pad ? performance.now() - pad.heardAt : Infinity
+  }
+
   /** Si hay un celular en ese lugar. */
   occupied(slot: number): boolean {
     return this.pads[slot] !== undefined

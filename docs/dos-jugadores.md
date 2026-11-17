@@ -21,7 +21,8 @@ Fase 2 del juego: dos personas juegan a la vez en la misma tele, cada una con su
 
 - **Etapa 1: hecha.** Dos celulares se unen con el mismo QR (Jugador 1 y 2), cada uno controla un personaje, la cámara sigue el punto medio y se aleja si se separan, cada jugador tiene su anillo (verde y celeste), su gotita de sudor y su habilidad con recarga propia, el robo cuenta para los dos, la alarma es compartida y hay un 40 % más de objetos. El segundo personaje se asigna solo: Nine si el Jugador 1 no lo eligió, y si no, el primero de la lista. Un tercer celular recibe "Sala llena".
 - **Etapa 2: hecha.** Cada celular abre la lista de personajes (botón **ELEGIR PERSONAJE** en la página de mando) y elige el suyo; el que ya tomó el otro aparece ocupado. La tele marca J1 o J2 en el menú y OK desde cualquier celular empieza la partida con lo elegido, incluso desde el póster. Quien no elige recibe uno asignado. Con art toy, el Jugador 1 es siempre el personaje de la cuenta y el segundo no puede repetirlo. Si un celular se va, queda libre su personaje.
-- **Etapa 3: pendiente.** Pausa al desconectarse un celular, equilibrio y pulido.
+- **Etapa 3: hecha, salvo el equilibrio.** Si un celular que ya jugaba el nivel deja de enviar durante 3 s (se cayó la red, apagó la pantalla o cerró la página), la partida se pausa: el reloj y los vigilantes se detienen y sale "PARTIDA EN PAUSA" con una cuenta atrás de 15 s. Si el celular vuelve, sigue donde estaba; si no, la partida continúa sin él (su personaje se queda quieto). La página de mando reintenta conectarse sola cada 2 s (hasta 20 veces) sin tener que recargar. Cada jugador lleva su nombre sobre la cabeza ("J1 · NINE", "J2 · BEA") con el color de su anillo.
+- **Equilibrio: pendiente de jugar.** Se afina con partidas reales. Las perillas son `COOP_EXTRA` (fracción de objetos extra, hoy 0,4) en `src/data.ts`, `LEVEL_SECONDS` (el minuto) y `PAUSE_GIVE_UP_S` / `PAD_QUIET_MS` (pausa) en `src/main.ts`.
 
 ## Cómo se implementó la etapa 1
 
@@ -33,7 +34,7 @@ Fase 2 del juego: dos personas juegan a la vez en la misma tele, cada una con su
 
 1. **Dos jugadores jugando.** Dos celulares conectados, cada uno controla un personaje (asignado automáticamente), cámara compartida, anillos de color, robo en equipo, alarma compartida y más objetos.
 2. **Elegir personaje desde el celular.** La página de mando muestra la lista; la tele solo confirma (hecho).
-3. **Pulido.** Reconexión y pausa, equilibrio de dificultad probado con jugadores reales, y detalles de interfaz.
+3. **Pulido.** Reconexión y pausa (hecho), nombres sobre los jugadores (hecho) y equilibrio de dificultad probado con jugadores reales (pendiente).
 
 ## Cambios técnicos previstos
 
