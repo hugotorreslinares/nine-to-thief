@@ -7,7 +7,7 @@ import { EN } from './i18n.ts'
 import { CHAIRS, CHARACTERS, FURNITURE, MAP, OBJECTS, ROUTES, SPAWN, WALLS } from './data.ts'
 import { COUNTS, LEVELS } from './levels.ts'
 import { FRESH, MAX_STARS, caught, steal, type Progress } from './progress.ts'
-import { PAD_BUTTON, parsePadState } from './padState.ts'
+import { PAD_BUTTON, parsePadState, parseToy } from './padState.ts'
 import { box, canSee, rayDistance, resolveCircle, turnToward } from './logic.ts'
 
 const viewer = { x: 0, z: 0, dir: 0, range: 5, halfAngle: Math.PI / 6 }
@@ -160,5 +160,10 @@ assert.equal(parsePadState([0, 0]), undefined, 'rechaza mensajes cortos')
 assert.equal(parsePadState(['a', 0, 0]), undefined, 'rechaza tipos erróneos')
 assert.equal(parsePadState([Infinity, 0, 0]), undefined, 'rechaza no finitos')
 assert.equal(parsePadState([0, 0, 1.5]), undefined, 'rechaza botones no enteros')
+
+assert.equal(parseToy({ toy: 'm6GgxxLDPO-epjJIwfmAiw' }), 'm6GgxxLDPO-epjJIwfmAiw', 'credencial de art toy válida')
+assert.equal(parseToy({ toy: 'corta' }), undefined, 'rechaza credenciales cortas')
+assert.equal(parseToy({ toy: '../../etc/passwd/xxxxxxxx' }), undefined, 'rechaza caracteres raros')
+assert.equal(parseToy([0, 0, 0]), undefined, 'un estado de mando no es un art toy')
 
 console.log('logic ok')

@@ -1,7 +1,7 @@
 // Lado del televisor del "celular como mando": abre una sala en el broker público de PeerJS y recibe
 // el estado del mando por un canal de datos WebRTC (directo entre dispositivos).
 import { Peer, type DataConnection } from 'peerjs'
-import { parsePadState, peerId, type PadState } from './padState.ts'
+import { parsePadState, parseToy, peerId, type PadState } from './padState.ts'
 
 const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789' // sin caracteres ambiguos
 /** Sin mensajes en este tiempo se da por perdido el celular y se suelta la palanca. */
@@ -15,7 +15,8 @@ export class Remote {
   private heardAt = 0
   private conn: DataConnection | undefined
 
-  constructor(onStatus: (status: RemoteStatus) => void) {
+  /** `onToy` recibe la credencial de un art toy que un celular envía para entrar a la tele. */
+  constructor(onStatus: (status: RemoteStatus) => void, onToy: (toy: string) => void) {
     const peer = new Peer(peerId(this.code))
     onStatus('connecting')
     peer.on('open', () => onStatus('ready'))
@@ -28,13 +29,22 @@ export class Remote {
       if (!this.conn) onStatus('offline')
     })
     peer.on('connection', (conn) => {
-      // Un solo celular a la vez: el último en conectar sustituye al anterior.
-      this.conn?.close()
-      this.conn = conn
-      conn.on('open', () => onStatus('paired'))
       conn.on('data', (data) => {
+        // Un celular que solo trae un art toy no debe desconectar al que está jugando de mando.
+        const toy = parseToy(data)
+        if (toy) {
+          onToy(toy)
+          conn.close()
+          return
+        }
         const next = parsePadState(data)
         if (!next) return
+        // Un solo celular de mando a la vez: el último en enviar su palanca sustituye al anterior.
+        if (this.conn !== conn) {
+          this.conn?.close()
+          this.conn = conn
+          onStatus('paired')
+        }
         this.state = next
         this.heardAt = performance.now()
       })

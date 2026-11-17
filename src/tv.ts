@@ -24,7 +24,7 @@ const notes = [
   t('Es un juego hecho por un fan, gratis, sin anuncios y sin pagos dentro de la app.'),
   t('No tiene relación con la serie The Office, ni con sus creadores, productoras o cadenas. No está afiliado, patrocinado ni respaldado por ellos. Los nombres y personajes de la serie pertenecen a sus respectivos dueños.'),
   t('La app no está en Google Play: instálala solo desde esta página. Android avisará de que viene de un origen desconocido, es normal en las apps que no pasan por la tienda.'),
-  t('En la tele se juega la demo (nivel 1). Los 10 niveles se desbloquean con un art toy NFC, que la tele no puede leer.'),
+  t('En la tele se juega la demo (nivel 1). Para los 10 niveles, abre tu art toy en el celular, toca "Jugar en la tele" y escribe el código que muestra la tele.'),
   t('Probado en un televisor Hisense con Android 9. Necesita Android TV o Google TV con Android 7 o superior e internet.'),
   t('Para actualizar, desinstala la versión anterior antes de instalar la nueva.'),
 ]

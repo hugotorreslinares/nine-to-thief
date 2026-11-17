@@ -23,3 +23,10 @@ export function parsePadState(data: unknown): PadState | undefined {
   const clamp = (v: number): number => Math.max(-1, Math.min(1, v))
   return { x: clamp(x), y: clamp(y), buttons: buttons & 0xf }
 }
+
+/** Credencial de un art toy enviada desde el celular a la tele. Mismo formato que la URL de la etiqueta. */
+export function parseToy(data: unknown): string | undefined {
+  if (typeof data !== 'object' || data === null || Array.isArray(data)) return undefined
+  const { toy } = data as Record<string, unknown>
+  return typeof toy === 'string' && /^[\w-]{16,64}$/.test(toy) ? toy : undefined
+}

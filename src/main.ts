@@ -14,6 +14,7 @@ import { PAD_BUTTON } from './padState.ts'
 import { mugshotHtml, posterHtml } from './poster.ts'
 import qrcode from 'qrcode-generator'
 import { Remote, type RemoteStatus } from './remote.ts'
+import { sendToy } from './toyLink.ts'
 import { surface, type Surface } from './surface.ts'
 import { claimNick, cleanNick, fetchBoard, isTaken, loadNick, saveNick, submitScore } from './scores.ts'
 import { canSee, rayDistance, resolveCircle, turnToward, type Box, type Pt } from './logic.ts'
@@ -476,6 +477,19 @@ ui.innerHTML = `
         <button id="signupBtn" class="font-gta cursor-pointer rounded bg-yellow-300 px-4 py-2 text-xl text-black disabled:opacity-50">${t('EMPEZAR A ROBAR')}</button>
       </form>
     </dialog>
+    <button id="tvLinkBtn" class="ink hidden cursor-pointer rounded-lg border-2 border-black bg-emerald-500 px-4 py-2 text-lg">${t('📺 JUGAR EN LA TELE')}</button>
+    <dialog id="tvLink" class="pointer-events-auto m-auto w-full max-w-sm rounded-xl border-2 border-yellow-300 bg-neutral-900 p-5 text-white backdrop:bg-black/70">
+      <p class="mb-1 text-3xl text-yellow-300">${t('📺 JUGAR EN LA TELE')}</p>
+      <p class="mb-3 font-sans text-sm text-neutral-300">${t('Abre la app en tu tele y escribe aquí el código de 5 letras que muestra en la pantalla de inicio.')}</p>
+      <form id="tvLinkForm" class="flex gap-2 font-sans">
+        <input id="tvLinkCode" maxlength="5" required autocomplete="off" autocapitalize="characters" aria-label="${t('Código de la tele')}" class="w-32 rounded-lg border-2 border-neutral-600 bg-neutral-800 px-3 py-2 text-center text-xl tracking-widest text-white uppercase select-text" />
+        <button class="font-gta cursor-pointer rounded bg-yellow-300 px-4 py-2 text-xl text-black">${t('ENVIAR')}</button>
+      </form>
+      <p id="tvLinkStatus" class="mt-2 min-h-5 font-sans text-sm text-neutral-300"></p>
+      <form method="dialog" class="mt-3 text-right">
+        <button class="font-gta cursor-pointer rounded bg-neutral-700 px-4 py-1 text-lg text-white">${t('CERRAR')}</button>
+      </form>
+    </dialog>
     <div class="flex flex-wrap items-center justify-center gap-2">
       <input id="nick" maxlength="12" autocomplete="nickname" placeholder="${t('Tu apodo para el tablón')}" class="rounded-lg border-2 border-neutral-600 bg-neutral-900 px-3 py-2 font-sans text-base text-white select-text" />
       <button id="boardBtn" class="ink cursor-pointer rounded-lg border-2 border-black bg-yellow-400 px-4 py-2 text-lg">${t('🏆 TABLÓN')}</button>
@@ -540,6 +554,11 @@ const dom = {
   signupBtn: el<HTMLButtonElement>('#signupBtn'),
   installBtn: el<HTMLButtonElement>('#installBtn'),
   installHelp: el<HTMLDialogElement>('#installHelp'),
+  tvLinkBtn: el<HTMLButtonElement>('#tvLinkBtn'),
+  tvLink: el<HTMLDialogElement>('#tvLink'),
+  tvLinkForm: el<HTMLFormElement>('#tvLinkForm'),
+  tvLinkCode: el<HTMLInputElement>('#tvLinkCode'),
+  tvLinkStatus: el<HTMLParagraphElement>('#tvLinkStatus'),
   nick: el<HTMLInputElement>('#nick'),
   nickStatus: el<HTMLParagraphElement>('#nickStatus'),
   boardBtn: el<HTMLButtonElement>('#boardBtn'),
@@ -586,9 +605,11 @@ function renderMenu(): void {
   // textContent: el nombre lo escribió el jugador.
   dom.account.textContent = account
     ? `${account.name} · ${finished() ? t('OFICINA VACÍA') : t('NIVEL {n}', { n: progress.level })} · ${starsText()}`
-    : t('DEMO: solo el nivel 1. Acerca tu art toy para jugar los 10 niveles.')
+    : TV ? t('DEMO: solo el nivel 1. En tu celular abre tu art toy y toca "Jugar en la tele".') : t('DEMO: solo el nivel 1. Acerca tu art toy para jugar los 10 niveles.')
   // Con art toy sobran la lista de espera y el cambio de idioma (recargar cerraría la sesión).
   dom.waitBtn.classList.toggle('hidden', account !== undefined)
+  // Con un art toy abierto en este celular se puede mandar la partida a la tele.
+  dom.tvLinkBtn.classList.toggle('hidden', account === undefined || tagCode === undefined || TV)
   dom.langBtn.classList.toggle('hidden', account !== undefined)
   const own = account ? CHARACTERS.find((c) => c.id === progress.char) : undefined
   // Datos estáticos propios: no hay entrada de usuario en este HTML.
@@ -1174,7 +1195,7 @@ function padStatus(status: RemoteStatus): void {
 }
 
 if (TV) {
-  remote = new Remote(padStatus)
+  remote = new Remote(padStatus, enterWithToy)
   const qr = qrcode(0, 'M')
   qr.addData(`${location.origin}/pad.html?c=${remote.code}`)
   qr.make()
@@ -1182,6 +1203,19 @@ if (TV) {
   // El código escrito sirve cuando la cámara del celular no lee el QR (se teclea en /pad.html).
   for (const code of document.querySelectorAll('.padCode')) code.textContent = remote.code
   padBoxes.menu.classList.replace('hidden', 'flex')
+}
+
+/** Un celular manda su art toy: la tele entra con esa cuenta. Solo desde el menú, nunca a media partida. */
+function enterWithToy(code: string): void {
+  if (phase !== 'menu') return
+  dom.poster.classList.add('hidden')
+  open(code).then((found) => {
+    if (found) signIn(found)
+    else notify(t('Art toy nuevo: regístralo primero en tu celular'))
+  }).catch((err: unknown) => {
+    console.error(err)
+    notify(err instanceof PlayError && err.status === 404 ? t('Etiqueta no reconocida: juegas la demo') : t('No se pudo conectar: juegas la demo'))
+  })
 }
 
 /** OK del celular: avanza el póster o el cartel; en el menú pulsa el personaje enfocado. */
@@ -1201,6 +1235,22 @@ function pollPad(): void {
   // El código QR sobra en cuanto se pasa del póster.
   padBoxes.poster.classList.toggle('hidden', !TV || dom.poster.classList.contains('hidden'))
 }
+
+dom.tvLinkBtn.addEventListener('click', () => {
+  dom.tvLinkStatus.textContent = ''
+  dom.tvLink.showModal()
+})
+dom.tvLinkForm.addEventListener('submit', (e) => {
+  e.preventDefault()
+  if (!tagCode) return
+  dom.tvLinkStatus.textContent = t('Enviando…')
+  sendToy(dom.tvLinkCode.value.trim().toUpperCase(), tagCode).then(() => {
+    dom.tvLinkStatus.textContent = t('Enviado: mira la tele ✓')
+  }).catch((err: unknown) => {
+    console.error(err)
+    dom.tvLinkStatus.textContent = err instanceof Error && err.message === 'not-found' ? t('No hay ninguna tele con ese código') : t('No se pudo enviar')
+  })
+})
 
 addEventListener('keydown', (e) => {
   if (e.target instanceof HTMLInputElement || dom.waitlist.open) return // escribiendo, o con la lista de espera abierta
