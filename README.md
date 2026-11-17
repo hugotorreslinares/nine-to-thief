@@ -74,11 +74,14 @@ adb install -r release/android/app-debug.apk
 - **Descarga pública:** la página `/tv/` explica la instalación y `/apk` redirige a la última versión, publicada en la release `tv` de este repositorio cada vez que se sube a `main`.
 - Mando a distancia: flechas, OK (mantener para robar), Play/Pausa (habilidad) y Atrás (menú, y salir desde el menú).
 - Celular como mando: el póster del televisor muestra un QR y un código de 5 letras que abren `/pad.html` y conectan por WebRTC (PeerJS), con palanca y botones.
+- **Dos jugadores:** si se conectan dos celulares con el mismo QR, juegan de a dos en la misma tele (ver abajo).
 - **Jugar en la tele con art toy:** se abre el art toy en el celular, se toca "Jugar en la tele" y se escribe el código de la tele. La credencial viaja directa del celular a la tele y solo vive en memoria (`src/toyLink.ts`). La tele solo entra con art toys ya registrados.
 - Televisores con GPU débil (Mali-470) solo dan WebGL 1: por eso Three.js está fijada en r162, la última con soporte, y hay un modo ligero (`src/device.ts`) sin sombras y con menos polígonos.
 - APK de depuración: cada compilación lleva otra firma, desinstala antes de actualizar.
 - Identificador de la app: `dev.ninetothief.app`.
 
-## Próximo: dos jugadores en la tele
+## Dos jugadores en la tele
 
-Modo cooperativo con dos celulares en el mismo televisor. Decisiones y etapas en [docs/dos-jugadores.md](docs/dos-jugadores.md).
+Modo cooperativo con dos celulares en el mismo televisor: escanean el mismo QR (el primero es el Jugador 1, el segundo el 2), cada uno controla a su personaje y entre los dos roban los objetos del nivel, con un 40 % más de objetos. Si un vigilante ve robar a cualquiera de los dos, pierden los dos. Un tercer celular recibe "Sala llena".
+
+Hecho: la etapa 1 (dos jugadores jugando). Pendiente: elegir personaje desde el celular y pausar si uno se desconecta. Decisiones y plan en [docs/dos-jugadores.md](docs/dos-jugadores.md).

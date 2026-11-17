@@ -17,6 +17,18 @@ Fase 2 del juego: dos personas juegan a la vez en la misma tele, cada una con su
 | Progreso y art toy | Si alguien abre un art toy, la partida avanza en **esa cuenta**. Quien juega sin art toy entra como invitado y no guarda nada | Una cuenta por art toy; el invitado no necesita registro |
 | Si un celular se desconecta | La partida **se pausa** unos segundos para que vuelva | Evita perder un nivel por un corte de red |
 
+## Estado
+
+- **Etapa 1: hecha.** Dos celulares se unen con el mismo QR (Jugador 1 y 2), cada uno controla un personaje, la cámara sigue el punto medio y se aleja si se separan, cada jugador tiene su anillo (verde y celeste), su gotita de sudor y su habilidad con recarga propia, el robo cuenta para los dos, la alarma es compartida y hay un 40 % más de objetos. El segundo personaje se asigna solo: Nine si el Jugador 1 no lo eligió, y si no, el primero de la lista. Un tercer celular recibe "Sala llena".
+- **Etapa 2: pendiente.** Elegir personaje desde el celular.
+- **Etapa 3: pendiente.** Pausa al desconectarse un celular, equilibrio y pulido.
+
+## Cómo se implementó la etapa 1
+
+- Los objetos extra salen de `extraObjects` (`src/data.ts`) en escritorios libres y no se guardan. Con extras pendientes, el último objeto del nivel se retiene sin guardarse hasta robarlos todos, para que el progreso del art toy no avance si el equipo falla en los extras.
+- La cámara usa `coopZoom` (`src/logic.ts`), que calcula el zoom exacto según dónde caen los dos jugadores en la vista isométrica.
+- `src/remote.ts` admite dos mandos y responde a cada celular con su jugador (`HostMessage` en `src/padState.ts`).
+
 ## Etapas
 
 1. **Dos jugadores jugando.** Dos celulares conectados, cada uno controla un personaje (asignado automáticamente), cámara compartida, anillos de color, robo en equipo, alarma compartida y más objetos.
