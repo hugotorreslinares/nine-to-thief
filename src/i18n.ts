@@ -6,6 +6,8 @@ export type Lang = 'es' | 'en'
 const KEY = 'office-theft-lang'
 
 function detect(): Lang {
+  // Un enlace a /en pide inglés, diga lo que diga el navegador.
+  if (typeof location !== 'undefined' && /^\/en(\/|$)/.test(location.pathname)) return 'en'
   try {
     const saved = localStorage.getItem(KEY)
     if (saved === 'es' || saved === 'en') return saved

@@ -652,7 +652,7 @@ function signIn(next: Account): void {
 
 // La URL del art toy es una credencial: se saca de la barra de direcciones nada más leerla.
 const tagCode = /^\/play\/([\w-]{16,64})\/?$/.exec(location.pathname)?.[1]
-if (location.pathname !== '/') history.replaceState(null, '', '/')
+if (location.pathname !== '/') history.replaceState(null, '', `/${location.search}`)
 let connecting = tagCode !== undefined
 
 if (tagCode) {
@@ -825,12 +825,15 @@ async function mugshotCard(svg: string): Promise<Blob> {
   })
 }
 
+/** Dirección que se comparte: /en lleva la vista previa en inglés. */
+const SHARE_URL = `${location.origin}/${lang === 'en' ? 'en/' : ''}`
+
 /** Tarjeta de la última captura, lista antes del clic: compartir archivos exige ir pegado al gesto. */
 let shot: Promise<Blob> | undefined
 
 async function share(): Promise<void> {
   if (shot) {
-    const text = `${t('Me ficharon robando {things} en Threat Level: Theft. ¿Duras más que yo?', { things: thingsOf(level) })} ${location.origin}`
+    const text = `${t('Me ficharon robando {things} en Threat Level: Theft. ¿Duras más que yo?', { things: thingsOf(level) })} ${SHARE_URL}`
     const file = new File([await shot], 'threat-level-theft.png', { type: 'image/png' })
     if (navigator.canShare?.({ files: [file] })) return navigator.share({ files: [file], text })
     // Sin hoja de compartir con archivos (escritorio): se descarga la imagen y se copia el texto.
@@ -845,7 +848,7 @@ async function share(): Promise<void> {
   const text = rank
     ? t('Llegué al nivel {level} y voy #{rank} en Threat Level: Theft. ¿Me superas?', { level: bestLevel, rank })
     : t('Llegué al nivel {level} en Threat Level: Theft. ¿Me superas?', { level: bestLevel })
-  const url = `${location.origin}/?reto=${bestLevel}.${bestSeconds}`
+  const url = `${SHARE_URL}?reto=${bestLevel}.${bestSeconds}`
   if (navigator.share) return navigator.share({ text, url })
   await navigator.clipboard.writeText(`${text} ${url}`)
   dom.shareBtn.textContent = t('¡COPIADO!')

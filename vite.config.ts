@@ -32,4 +32,8 @@ const devApi: Plugin = {
   },
 }
 
-export default defineConfig({ plugins: [tailwindcss(), devApi] })
+export default defineConfig({
+  plugins: [tailwindcss(), devApi],
+  // /en es la misma app con metadatos en inglés para compartir.
+  build: { rolldownOptions: { input: { main: 'index.html', en: 'en/index.html' } } },
+})
