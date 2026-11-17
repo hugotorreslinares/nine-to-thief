@@ -1393,16 +1393,18 @@ function enterWithToy(code: string): void {
 
 /** OK del celular: avanza el póster o el cartel; en el menú pulsa el personaje enfocado. */
 function padOk(): void {
-  if (phase === 'menu' && dom.poster.classList.contains('hidden')) {
-    // Con elecciones hechas desde los celulares, OK empieza con ellas; si no, pulsa el personaje enfocado en la tele.
-    const first = CHARACTERS.find((c) => c.id === picks[0])
-    if (first || picks[1] !== null) {
-      const fallback = CHARACTERS.find((c) => c.id !== picks[1]) ?? player.char
-      return beginGame(first ?? (player.char.id === picks[1] ? fallback : player.char))
-    }
-    const focused = document.activeElement
-    if (focused instanceof HTMLElement) focused.click()
-  } else confirm()
+  if (phase !== 'menu') return confirm()
+  // Los celulares se conectan desde el póster: si ya eligieron, OK empieza sin pasar por el menú.
+  const first = CHARACTERS.find((c) => c.id === picks[0])
+  if (first || picks[1] !== null) {
+    dom.poster.classList.add('hidden')
+    const fallback = CHARACTERS.find((c) => c.id !== picks[1]) ?? player.char
+    return beginGame(first ?? (player.char.id === picks[1] ? fallback : player.char))
+  }
+  // Sin elecciones: el primer OK deja el póster y los siguientes pulsan el personaje que la tele tiene enfocado.
+  if (!dom.poster.classList.contains('hidden')) return confirm()
+  const focused = document.activeElement
+  if (focused instanceof HTMLElement) focused.click()
 }
 
 function pollPad(): void {

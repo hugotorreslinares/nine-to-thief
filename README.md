@@ -84,4 +84,4 @@ adb install -r release/android/app-debug.apk
 
 Modo cooperativo con dos celulares en el mismo televisor: escanean el mismo QR (el primero es el Jugador 1, el segundo el 2), cada uno controla a su personaje y entre los dos roban los objetos del nivel, con un 40 % más de objetos. Si un vigilante ve robar a cualquiera de los dos, pierden los dos. Un tercer celular recibe "Sala llena".
 
-Hecho: la etapa 1 (dos jugadores jugando). Pendiente: elegir personaje desde el celular y pausar si uno se desconecta. Decisiones y plan en [docs/dos-jugadores.md](docs/dos-jugadores.md).
+Cada uno elige su personaje desde su celular (botón **ELEGIR PERSONAJE** en la página de mando; el que ya tomó el otro aparece ocupado) y OK empieza la partida. Hecho: las etapas 1 y 2. Pendiente: pausar si un celular se desconecta y afinar el equilibrio. Decisiones y plan en [docs/dos-jugadores.md](docs/dos-jugadores.md).
