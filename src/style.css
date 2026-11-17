@@ -1,7 +1,9 @@
 @import "tailwindcss";
+/* Impact no existe en Android ni en muchas teles: Anton es libre y se parece, y va dentro de la app. */
+@import "@fontsource/anton";
 
 @theme {
-  --font-gta: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
+  --font-gta: Anton, Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
 }
 
 /* Rótulo con borde negro estilo cartel de misión. */

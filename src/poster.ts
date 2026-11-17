@@ -238,7 +238,7 @@ export function posterHtml(): string {
   const outline = '[-webkit-text-stroke:0.07em_black] [paint-order:stroke_fill]'
   return `
     <img src="/toy.webp" alt="" class="absolute right-[8%] bottom-0 h-[96%] max-w-[46%] object-contain object-bottom drop-shadow-[10px_12px_0_rgb(0_0_0/0.35)] portrait:top-[3%] portrait:right-1/2 portrait:bottom-auto portrait:h-[54%] portrait:max-w-[80%] portrait:translate-x-1/2" />
-    <div class="ink absolute top-1/2 left-[5%] flex -translate-y-1/2 flex-col leading-[0.9] portrait:inset-x-0 portrait:top-auto portrait:bottom-[5%] portrait:left-0 portrait:translate-y-0 portrait:items-center portrait:text-center">
+    <div class="ink absolute top-[40%] left-[5%] flex -translate-y-1/2 flex-col leading-[0.9] portrait:inset-x-0 portrait:top-auto portrait:bottom-[5%] portrait:left-0 portrait:translate-y-0 portrait:items-center portrait:text-center">
       <span class="text-[min(8vw,11vh)] text-white ${outline}">NINE TO</span>
       <span class="text-[min(19vw,27vh)] text-yellow-300 ${outline}">THIEF</span>
       <span class="mt-3 text-[min(2.8vw,3.8vh)] text-white ${outline}">${t('ROBA LA OFICINA SIN QUE TE VEAN')}</span>
