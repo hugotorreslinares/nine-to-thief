@@ -1,15 +1,19 @@
 import * as THREE from 'three'
 import type { Look } from './data.ts'
+import { LITE } from './device.ts'
+import { surface, type Surface } from './surface.ts'
 
-const SPHERE = new THREE.SphereGeometry(1, 24, 16)
-const CAP = new THREE.SphereGeometry(1, 24, 12, 0, Math.PI * 2, 0, Math.PI * 0.5)
+// En GPU débil (LITE) todo se dibuja con muchos menos polígonos.
+const RADIAL = LITE ? 8 : 16
+const SPHERE = new THREE.SphereGeometry(1, LITE ? 10 : 24, LITE ? 6 : 16)
+const CAP = new THREE.SphereGeometry(1, LITE ? 10 : 24, LITE ? 4 : 12, 0, Math.PI * 2, 0, Math.PI * 0.5)
 const BOX = new THREE.BoxGeometry(1, 1, 1)
-const CYLINDER = new THREE.CylinderGeometry(1, 1, 1, 16)
-const BODY = new THREE.CylinderGeometry(0.2, 0.26, 0.45, 16)
-const SKIRT = new THREE.CylinderGeometry(0.22, 0.34, 0.28, 16)
-const LENS = new THREE.TorusGeometry(0.09, 0.015, 6, 16).rotateY(Math.PI / 2)
+const CYLINDER = new THREE.CylinderGeometry(1, 1, 1, RADIAL)
+const BODY = new THREE.CylinderGeometry(0.2, 0.26, 0.45, RADIAL)
+const SKIRT = new THREE.CylinderGeometry(0.22, 0.34, 0.28, RADIAL)
+const LENS = new THREE.TorusGeometry(0.09, 0.015, LITE ? 3 : 6, RADIAL).rotateY(Math.PI / 2)
 // Corona de pelo centrada en la nuca (-x).
-const CROWN = new THREE.TorusGeometry(0.34, 0.1, 8, 16, Math.PI * 1.2).rotateZ(Math.PI * 0.4).rotateX(Math.PI / 2)
+const CROWN = new THREE.TorusGeometry(0.34, 0.1, LITE ? 4 : 8, RADIAL, Math.PI * 1.2).rotateZ(Math.PI * 0.4).rotateX(Math.PI / 2)
 
 const HEAD_Y = 1.18
 const HIP_Y = 0.36
@@ -26,7 +30,7 @@ interface Limbs {
 const LIMBS = new WeakMap<THREE.Group, Limbs>()
 const MASKS = new WeakMap<THREE.Group, THREE.Group>()
 // Banda del antifaz: aro tumbado alrededor de la cabeza, para que se vea también de espaldas.
-const BAND = new THREE.TorusGeometry(0.41, 0.075, 8, 24).rotateX(Math.PI / 2)
+const BAND = new THREE.TorusGeometry(0.41, 0.075, LITE ? 4 : 8, LITE ? 12 : 24).rotateX(Math.PI / 2)
 const MASK = 0x16161a
 
 /** Pone o quita el antifaz de ladrón. */
@@ -49,11 +53,11 @@ export function swingLimbs(fig: THREE.Group, angle: number): void {
 /** Figura cabezona tipo vinilo, ~1,55 m, mirando hacia +x. */
 export function buildFigure(look: Look): THREE.Group {
   const g = new THREE.Group()
-  const mats = new Map<number, THREE.MeshStandardMaterial>()
-  const mat = (color: number): THREE.MeshStandardMaterial => {
+  const mats = new Map<number, Surface>()
+  const mat = (color: number): Surface => {
     let m = mats.get(color)
     if (!m) {
-      m = new THREE.MeshStandardMaterial({ color, roughness: 0.4 })
+      m = surface(color, 0.4)
       mats.set(color, m)
     }
     return m

@@ -7,6 +7,7 @@ import { EN } from './i18n.ts'
 import { CHAIRS, CHARACTERS, FURNITURE, MAP, OBJECTS, ROUTES, SPAWN, WALLS } from './data.ts'
 import { COUNTS, LEVELS } from './levels.ts'
 import { FRESH, MAX_STARS, caught, steal, type Progress } from './progress.ts'
+import { PAD_BUTTON, parsePadState } from './padState.ts'
 import { box, canSee, rayDistance, resolveCircle, turnToward } from './logic.ts'
 
 const viewer = { x: 0, z: 0, dir: 0, range: 5, halfAngle: Math.PI / 6 }
@@ -153,5 +154,11 @@ for (const file of readdirSync(srcDir).filter((name) => name.endsWith('.ts'))) {
   for (const found of readFileSync(new URL(file, srcDir), 'utf8').matchAll(/\bt\('([^']+)'/g)) used.add(found[1] ?? '')
 }
 for (const text of used) assert.ok(text in EN, `falta la traducción al inglés de: ${text}`)
+
+assert.deepEqual(parsePadState([0.5, -2, PAD_BUTTON.grab | PAD_BUTTON.ok]), { x: 0.5, y: -1, buttons: 5 }, 'mando válido, palanca acotada')
+assert.equal(parsePadState([0, 0]), undefined, 'rechaza mensajes cortos')
+assert.equal(parsePadState(['a', 0, 0]), undefined, 'rechaza tipos erróneos')
+assert.equal(parsePadState([Infinity, 0, 0]), undefined, 'rechaza no finitos')
+assert.equal(parsePadState([0, 0, 1.5]), undefined, 'rechaza botones no enteros')
 
 console.log('logic ok')

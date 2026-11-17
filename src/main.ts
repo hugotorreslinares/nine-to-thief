@@ -4,12 +4,17 @@ import {
   CHAIRS, CHAIR_R, CHARACTERS, CONFERENCE, FURNITURE, LEVEL_SECONDS, MAP, OBJECTS, PATROL_ORDER, ROOMS, ROUTES, SPAWN, WALLS,
   levelConfig, type Character, type LevelConfig,
 } from './data.ts'
+import { LITE, TOUCH, TV } from './device.ts'
 import { buildFigure, setMask, swingLimbs } from './figure.ts'
 import { lang, setLang, t } from './i18n.ts'
 import { COUNTS, DEMO_COUNTS, LEVELS } from './levels.ts'
 import { FRESH, MAX_STARS, caught, steal, type Progress } from './progress.ts'
 import { PlayError, close, idle, joinWaitlist, open, register, report, type Account } from './session.ts'
+import { PAD_BUTTON } from './padState.ts'
 import { mugshotHtml, posterHtml } from './poster.ts'
+import qrcode from 'qrcode-generator'
+import { Remote, type RemoteStatus } from './remote.ts'
+import { surface, type Surface } from './surface.ts'
 import { claimNick, cleanNick, fetchBoard, isTaken, loadNick, saveNick, submitScore } from './scores.ts'
 import { canSee, rayDistance, resolveCircle, turnToward, type Box, type Pt } from './logic.ts'
 
@@ -21,9 +26,6 @@ const VIEW = 15
 const VIEW_SHORT = 10
 /** Ancho mínimo visible en metros: en vertical la cámara se aleja para no quedar a ciegas. */
 const MIN_VIEW_WIDTH = 10
-const TOUCH = matchMedia('(pointer: coarse)').matches
-/** Televisor Android: sin puntero ni teclado, solo el mando a distancia (flechas, OK, Atrás, Menú). */
-const TV = !TOUCH && (/Android/i.test(navigator.userAgent) || new URLSearchParams(location.search).has('tv'))
 /** Texto según el aparato: táctil, televisor o teclado. */
 const pick = (touch: string, tv: string, keyboard: string): string => t(TOUCH ? touch : TV ? tv : keyboard)
 /** Teclas de habilidad: Q, y en el mando de la tele Menú, los botones de colores y Play/Pausa. */
@@ -51,8 +53,12 @@ function el<T extends Element>(selector: string): T {
 // ---------- Render ----------
 
 const canvas = el<HTMLCanvasElement>('#game')
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true })
-renderer.shadowMap.enabled = true
+// Muchos televisores Android solo dan WebGL 1: Three.js r162 es la última que trae el renderizador para eso.
+const probe = document.createElement('canvas').getContext('webgl2')
+const hasWebGL2 = probe !== null
+probe?.getExtension('WEBGL_lose_context')?.loseContext() // el sondeo no debe gastar uno de los pocos contextos del navegador
+const renderer = new (hasWebGL2 ? THREE.WebGLRenderer : THREE.WebGL1Renderer)({ canvas, antialias: !LITE, alpha: true })
+renderer.shadowMap.enabled = !LITE
 
 const figures = new Map(CHARACTERS.map((c) => [c.id, buildFigure(c.look)]))
 const figureOf = (c: Character): THREE.Group => {
@@ -90,8 +96,8 @@ scene.add(new THREE.HemisphereLight(0xffffff, 0x8a8a99, 1.7))
 const sun = new THREE.DirectionalLight(0xfff2dd, 2)
 sun.position.set(MAP.w / 2 - 10, 26, MAP.d / 2 + 9)
 sun.target.position.set(MAP.w / 2, 0, MAP.d / 2)
-sun.castShadow = true
-sun.shadow.mapSize.set(2048, 2048)
+sun.castShadow = !LITE
+sun.shadow.mapSize.setScalar(TV ? 1024 : 2048)
 Object.assign(sun.shadow.camera, { left: -24, right: 24, top: 24, bottom: -24, near: 1, far: 80 })
 scene.add(sun, sun.target)
 
@@ -107,7 +113,7 @@ function resize(): void {
   camera.top = view / 2
   camera.bottom = -view / 2
   camera.updateProjectionMatrix()
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 2))
+  renderer.setPixelRatio(LITE ? 1 : Math.min(devicePixelRatio, 2)) // la GPU de la tele no da para 1080p
   renderer.setSize(innerWidth, innerHeight, false)
 }
 addEventListener('resize', resize)
@@ -121,7 +127,7 @@ function lookAt(x: number, z: number): void {
 const UNIT_BOX = new THREE.BoxGeometry(1, 1, 1)
 
 function addBox(b: Box, h: number, color: number, y = 0): THREE.Mesh {
-  const mesh = new THREE.Mesh(UNIT_BOX, new THREE.MeshStandardMaterial({ color, roughness: 0.8 }))
+  const mesh = new THREE.Mesh(UNIT_BOX, surface(color, 0.8))
   mesh.scale.set(b.maxX - b.minX, h, b.maxZ - b.minZ)
   mesh.position.set((b.minX + b.maxX) / 2, y + h / 2, (b.minZ + b.maxZ) / 2)
   mesh.castShadow = true
@@ -132,10 +138,10 @@ function addBox(b: Box, h: number, color: number, y = 0): THREE.Mesh {
 
 for (const room of ROOMS) addBox(room.box, 0.02, room.color, -0.02).castShadow = false
 for (const wall of WALLS) addBox(wall, WALL_H, 0xe8e4da)
-const UNIT_CYLINDER = new THREE.CylinderGeometry(0.5, 0.5, 1, 16)
+const UNIT_CYLINDER = new THREE.CylinderGeometry(0.5, 0.5, 1, LITE ? 8 : 16)
 
 function addDetail(geo: THREE.BufferGeometry, color: number, size: readonly [number, number, number], at: readonly [number, number, number]): void {
-  const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color, roughness: 0.6 }))
+  const mesh = new THREE.Mesh(geo, surface(color, 0.6))
   mesh.scale.set(...size)
   mesh.position.set(...at)
   mesh.castShadow = true
@@ -198,7 +204,7 @@ interface Chair {
 
 function makeChair(at: Pt & { readonly dir: number }): THREE.Group {
   const g = new THREE.Group()
-  const mat = new THREE.MeshStandardMaterial({ color: 0x2b2f38, roughness: 0.7 })
+  const mat = surface(0x2b2f38, 0.7)
   const part = (geo: THREE.BufferGeometry, size: readonly [number, number, number], at: readonly [number, number, number]): void => {
     const mesh = new THREE.Mesh(geo, mat)
     mesh.scale.set(...size)
@@ -233,7 +239,7 @@ interface Item extends Pt {
 const OBJECT_SCALE = 1.5
 const MARKER_GEO = new THREE.OctahedronGeometry(0.16)
 const MARKER_MAT = new THREE.MeshBasicMaterial({ color: 0xffd400 })
-const partMats = new Map<number, THREE.MeshStandardMaterial>()
+const partMats = new Map<number, Surface>()
 
 const objects: readonly Item[] = OBJECTS.map((o) => {
   const kind = LEVELS[o.level - 1]
@@ -241,7 +247,7 @@ const objects: readonly Item[] = OBJECTS.map((o) => {
   const mesh = new THREE.Group()
   for (const part of kind.parts) {
     let mat = partMats.get(part.color)
-    if (!mat) partMats.set(part.color, mat = new THREE.MeshStandardMaterial({ color: part.color, roughness: 0.5 }))
+    if (!mat) partMats.set(part.color, mat = surface(part.color, 0.5))
     const piece = new THREE.Mesh(part.shape === 'box' ? UNIT_BOX : UNIT_CYLINDER, mat)
     piece.scale.set(...part.size)
     piece.position.set(...part.at)
@@ -441,10 +447,19 @@ ui.innerHTML = `
       <button id="waitClose" type="button" class="font-gta cursor-pointer rounded bg-neutral-700 px-4 py-1 text-lg text-white">${t('CERRAR')}</button>
     </form>
   </dialog>
+  <div id="padPoster" class="pointer-events-none absolute right-2 bottom-2 z-20 hidden w-40 flex-col items-center gap-1 rounded bg-white p-2 text-center font-sans text-xs leading-tight text-black">
+    <img class="padQr size-32 [image-rendering:pixelated]" alt="" />
+    <span class="padText"></span>
+    <b class="padCode text-base tracking-widest"></b>
+  </div>
   <div id="poster" class="pointer-events-auto absolute inset-0 z-10 grid cursor-pointer grid-cols-6 grid-rows-3 gap-1 bg-black p-1 md:gap-2 md:p-2 portrait:grid-cols-3 portrait:grid-rows-6">${posterHtml()}</div>
   <div id="menu" class="pointer-events-auto absolute inset-0 flex flex-col items-center gap-4 overflow-y-auto bg-black/75 p-3 md:p-6">
     <h1 class="ink text-center text-4xl text-yellow-300 md:text-7xl">THREAT LEVEL: <span class="text-emerald-400">THEFT</span></h1>
     <p class="ink text-center text-base text-neutral-200 md:text-xl">${t('Elige a tu ladrón. Roba sin que te vean mientras lo coges. Un minuto por nivel.')}</p>
+    <div id="padMenu" class="hidden items-center gap-3 rounded-lg bg-white p-2 font-sans text-sm text-black">
+      <img class="padQr size-24 [image-rendering:pixelated]" alt="" />
+      <span class="max-w-48 text-left"><span class="padText"></span><br /><b class="padCode text-lg tracking-widest"></b></span>
+    </div>
     <p id="account" class="ink text-center text-lg text-emerald-400 md:text-2xl"></p>
     <p id="challenge" class="ink hidden text-center text-lg text-pink-400 md:text-2xl"></p>
     <div class="flex flex-wrap items-center justify-center gap-2">
@@ -487,7 +502,7 @@ ui.innerHTML = `
       </form>
     </dialog>
     <div id="roster" class="grid w-full max-w-6xl grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4"></div>
-    <p class="ink text-center text-base text-neutral-300 md:text-lg">${pick('Palanca: moverse · mantén ROBAR · toca la habilidad para usarla', 'Flechas: moverse · mantén OK: robar · MENÚ o ROJO: habilidad · Atrás: menú', 'WASD / flechas: moverse · mantén E: robar · Q: habilidad · Esc: menú')}</p>
+    <p class="ink text-center text-base text-neutral-300 md:text-lg">${pick('Palanca: moverse · mantén ROBAR · toca la habilidad para usarla', 'Flechas: moverse · mantén OK: robar · PLAY: habilidad · Atrás: menú', 'WASD / flechas: moverse · mantén E: robar · Q: habilidad · Esc: menú')}</p>
     <footer class="mt-4 flex w-full max-w-6xl flex-col items-center gap-3 border-t-2 border-neutral-700 pt-5 pb-6 text-center font-sans text-sm text-neutral-400">
       <a href="https://www.instagram.com/mrmonomalo/" target="_blank" rel="noopener noreferrer" class="flex items-center gap-2 rounded-full border-2 border-black bg-linear-to-r from-fuchsia-600 via-rose-500 to-amber-400 px-4 py-2 text-base font-bold text-white hover:brightness-110">
         <svg viewBox="0 0 24 24" class="size-5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor"/></svg>
@@ -1135,11 +1150,56 @@ window.tvBack = () => {
   return true
 }
 
-// TEMP-KEYS: muestra la última tecla del mando para comprobar qué envía cada botón; quitar tras probar en la tele.
-const keyDebug = document.createElement('div')
-keyDebug.className = 'fixed right-2 bottom-2 z-50 rounded bg-black/80 px-2 py-1 font-sans text-sm text-lime-300'
-if (TV) document.body.append(keyDebug)
-addEventListener('keydown', (e) => { keyDebug.textContent = `key=${e.key} code=${e.code} kc=${e.keyCode}` }, true)
+// ---------- Celular como mando (televisor) ----------
+
+const padBoxes = { poster: el<HTMLDivElement>('#padPoster'), menu: el<HTMLDivElement>('#padMenu') }
+let remote: Remote | undefined
+/** Botones del celular ahora y en el cuadro anterior: ability, ok y back actúan al pulsar, grab mientras se mantiene. */
+let padHeld = 0
+let padWas = 0
+
+function padStatus(status: RemoteStatus): void {
+  const text: Record<RemoteStatus, string> = {
+    connecting: t('Preparando el mando…'),
+    ready: t('Escanea con tu celular para controlar'),
+    paired: t('Celular conectado ✓'),
+    offline: t('Mando por celular no disponible'),
+  }
+  for (const box of Object.values(padBoxes)) {
+    const label = box.querySelector('.padText')
+    if (label) label.textContent = text[status]
+    for (const part of box.querySelectorAll('.padQr, .padCode')) part.classList.toggle('hidden', status === 'paired')
+  }
+}
+
+if (TV) {
+  remote = new Remote(padStatus)
+  const qr = qrcode(0, 'M')
+  qr.addData(`${location.origin}/pad.html?c=${remote.code}`)
+  qr.make()
+  for (const img of document.querySelectorAll<HTMLImageElement>('.padQr')) img.src = qr.createDataURL(4, 4)
+  // El código escrito sirve cuando la cámara del celular no lee el QR (se teclea en /pad.html).
+  for (const code of document.querySelectorAll('.padCode')) code.textContent = remote.code
+  padBoxes.menu.classList.replace('hidden', 'flex')
+}
+
+/** OK del celular: avanza el póster o el cartel; en el menú pulsa el personaje enfocado. */
+function padOk(): void {
+  const focused = document.activeElement
+  if (phase === 'menu' && dom.poster.classList.contains('hidden') && focused instanceof HTMLElement) focused.click()
+  else confirm()
+}
+
+function pollPad(): void {
+  padHeld = remote?.source()?.buttons ?? 0
+  const pressed = padHeld & ~padWas
+  padWas = padHeld
+  if (pressed & PAD_BUTTON.ability) useAbility()
+  if (pressed & PAD_BUTTON.back) window.tvBack?.()
+  if (pressed & PAD_BUTTON.ok) padOk()
+  // El código QR sobra en cuanto se pasa del póster.
+  padBoxes.poster.classList.toggle('hidden', !TV || dom.poster.classList.contains('hidden'))
+}
 
 addEventListener('keydown', (e) => {
   if (e.target instanceof HTMLInputElement || dom.waitlist.open) return // escribiendo, o con la lista de espera abierta
@@ -1223,12 +1283,13 @@ function update(dt: number): void {
     }
     item.marker.rotateY(dt * 3)
   }
-  const grabbing = target !== undefined && (keys.has('KeyE') || (TV && keys.has('Enter')))
+  const grabbing = target !== undefined && (keys.has('KeyE') || (TV && keys.has('Enter')) || (padHeld & PAD_BUTTON.grab) !== 0)
   if (grabbing !== stealing) setStealing(grabbing)
 
   // Pantalla: derecha = (1, -1), arriba = (-1, -1) sobre XZ.
-  const ix = held('KeyD', 'ArrowRight') - held('KeyA', 'ArrowLeft') + stick.x
-  const iy = held('KeyW', 'ArrowUp') - held('KeyS', 'ArrowDown') + stick.y
+  const pad = remote?.source()
+  const ix = held('KeyD', 'ArrowRight') - held('KeyA', 'ArrowLeft') + stick.x + (pad?.x ?? 0)
+  const iy = held('KeyW', 'ArrowUp') - held('KeyS', 'ArrowDown') + stick.y + (pad?.y ?? 0)
   const mx = ix - iy
   const mz = -ix - iy
   const moving = !grabbing && (mx !== 0 || mz !== 0)
@@ -1310,7 +1371,7 @@ function drawHud(): void {
   dom.timer.textContent = `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`
   dom.timer.classList.toggle('text-red-500', timeLeft <= 10)
   const { effect } = player.char.ability
-  dom.abilityState.textContent = !effect ? t('PASIVA') : cooldown > 99 ? t('USADA') : cooldown > 0 ? `${Math.ceil(cooldown)} s` : pick('TOCA · LISTA', 'MENÚ · LISTA', 'Q · LISTA')
+  dom.abilityState.textContent = !effect ? t('PASIVA') : cooldown > 99 ? t('USADA') : cooldown > 0 ? `${Math.ceil(cooldown)} s` : pick('TOCA · LISTA', 'PLAY · LISTA', 'Q · LISTA')
 
   const k = dom.radar.width / MAP.w
   radar.clearRect(0, 0, dom.radar.width, dom.radar.height)
@@ -1334,6 +1395,7 @@ let last = performance.now()
 function frame(now: number): void {
   const dt = Math.min((now - last) / 1000, 0.05)
   last = now
+  pollPad()
   if (phase === 'playing') {
     update(dt)
     drawHud()

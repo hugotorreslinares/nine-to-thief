@@ -56,3 +56,18 @@ El juego está en español e inglés (`src/i18n.ts`): el español es el texto fu
 Niveles y objetos se configuran en `src/levels.ts`; las reglas de capturas y progreso están en `src/progress.ts`.
 
 Proyecto de fans sin ánimo de lucro, no afiliado a la serie ni a sus propietarios.
+
+## Android TV
+
+App Capacitor en `android/` que abre el juego publicado (`server.url` en `capacitor.config.ts`), así que las actualizaciones web llegan sin recompilar el APK. El APK se compila en GitHub Actions (workflow **Android APK**):
+
+```bash
+gh run download --name threat-level-theft-apk --dir release/android
+adb connect IP_DE_LA_TELE:5555
+adb install -r release/android/app-debug.apk
+```
+
+- Mando a distancia: flechas, OK (mantener para robar), Play/Pausa (habilidad) y Atrás (menú, y salir desde el menú).
+- Celular como mando: el póster del televisor muestra un QR que abre `/pad.html` y conecta por WebRTC (PeerJS).
+- Televisores con GPU débil (Mali-470) solo dan WebGL 1: por eso Three.js está fijada en r162, la última con soporte, y hay un modo ligero (`src/device.ts`) sin sombras y con menos polígonos.
+- APK de depuración: cada compilación lleva otra firma, desinstala antes de actualizar.
