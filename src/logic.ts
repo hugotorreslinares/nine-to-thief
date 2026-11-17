@@ -93,3 +93,19 @@ export function resolveCircle(x: number, z: number, r: number, boxes: readonly B
   }
   return { x, z }
 }
+
+/** Zoom máximo de la cámara compartida (1 = vista normal). */
+export const MAX_ZOOM = 2.5
+
+/**
+ * Cuánto hay que alejar la cámara isométrica para que los dos jugadores quepan, con la cámara en su punto medio.
+ * La cámara mira desde (+x, +z) a 30° de elevación: en pantalla, el ancho sale de (dx − dz) y el alto de (dx + dz) / 2.
+ */
+export function coopZoom(a: Pt, b: Pt, aspect: number, baseView: number, margin = 2.5): number {
+  const dx = b.x - a.x
+  const dz = b.z - a.z
+  const halfWidth = Math.abs(dx - dz) / (2 * Math.SQRT2)
+  const halfHeight = Math.abs(dx + dz) / (4 * Math.SQRT2)
+  const need = Math.max((2 * (halfWidth + margin)) / aspect, 2 * (halfHeight + margin))
+  return Math.min(MAX_ZOOM, Math.max(1, need / baseView))
+}

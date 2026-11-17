@@ -30,3 +30,13 @@ export function parseToy(data: unknown): string | undefined {
   const { toy } = data as Record<string, unknown>
   return typeof toy === 'string' && /^[\w-]{16,64}$/.test(toy) ? toy : undefined
 }
+
+/** Mensajes de la tele al celular: qué jugador es, o que la sala está llena. */
+export type HostMessage = { readonly slot: 0 | 1 } | { readonly full: true }
+
+export function parseHostMessage(data: unknown): HostMessage | undefined {
+  if (typeof data !== 'object' || data === null || Array.isArray(data)) return undefined
+  const { slot, full } = data as Record<string, unknown>
+  if (slot === 0 || slot === 1) return { slot }
+  return full === true ? { full: true } : undefined
+}

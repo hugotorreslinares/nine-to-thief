@@ -2,7 +2,7 @@ import * as THREE from 'three'
 import './style.css'
 import {
   CHAIRS, CHAIR_R, CHARACTERS, CONFERENCE, FURNITURE, LEVEL_SECONDS, MAP, OBJECTS, PATROL_ORDER, ROOMS, ROUTES, SPAWN, WALLS,
-  levelConfig, type Character, type LevelConfig,
+  COOP_EXTRA, extraObjects, levelConfig, type Character, type LevelConfig, type OfficeObject,
 } from './data.ts'
 import { LITE, TOUCH, TV } from './device.ts'
 import { buildFigure, setMask, swingLimbs } from './figure.ts'
@@ -17,7 +17,7 @@ import { Remote, type RemoteStatus } from './remote.ts'
 import { sendToy } from './toyLink.ts'
 import { surface, type Surface } from './surface.ts'
 import { claimNick, cleanNick, fetchBoard, isTaken, loadNick, saveNick, submitScore } from './scores.ts'
-import { canSee, rayDistance, resolveCircle, turnToward, type Box, type Pt } from './logic.ts'
+import { canSee, coopZoom, rayDistance, resolveCircle, turnToward, type Box, type Pt } from './logic.ts'
 
 const BASE_SPEED = 4.2
 const BASE_GRAB = 1.3
@@ -105,16 +105,28 @@ scene.add(sun, sun.target)
 
 const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 200)
 
-function resize(): void {
-  const aspect = innerWidth / innerHeight
+/** Zoom de la cámara compartida: 1 con un jugador; con dos se aleja lo justo para que quepan. */
+let zoom = 1
+
+/** Alto de la vista (en metros) con un solo jugador. */
+function baseView(): number {
   // Celular en horizontal: pantalla baja, se acerca para que las figuras no queden diminutas.
   const base = innerHeight < 500 ? VIEW_SHORT : VIEW
-  const view = Math.max(base, MIN_VIEW_WIDTH / aspect)
+  return Math.max(base, MIN_VIEW_WIDTH / (innerWidth / innerHeight))
+}
+
+function applyView(): void {
+  const aspect = innerWidth / innerHeight
+  const view = baseView() * zoom
   camera.left = (-view * aspect) / 2
   camera.right = (view * aspect) / 2
   camera.top = view / 2
   camera.bottom = -view / 2
   camera.updateProjectionMatrix()
+}
+
+function resize(): void {
+  applyView()
   renderer.setPixelRatio(LITE ? 1 : Math.min(devicePixelRatio, 2)) // la GPU de la tele no da para 1080p
   renderer.setSize(innerWidth, innerHeight, false)
 }
@@ -235,6 +247,8 @@ interface Item extends Pt {
   readonly turn: number
   readonly mesh: THREE.Group
   readonly marker: THREE.Mesh
+  /** Objeto extra del modo de dos jugadores: no forma parte del progreso guardado. */
+  readonly extra?: boolean
 }
 
 /** Los objetos reales son diminutos desde la cámara: se agrandan para que se note cuándo faltan. */
@@ -243,7 +257,7 @@ const MARKER_GEO = new THREE.OctahedronGeometry(0.16)
 const MARKER_MAT = new THREE.MeshBasicMaterial({ color: 0xffd400 })
 const partMats = new Map<number, Surface>()
 
-const objects: readonly Item[] = OBJECTS.map((o) => {
+function buildItem(o: OfficeObject, extra = false): Item {
   const kind = LEVELS[o.level - 1]
   if (!kind) throw new Error(`Objeto sin nivel: ${o.level}`)
   const mesh = new THREE.Group()
@@ -259,10 +273,14 @@ const objects: readonly Item[] = OBJECTS.map((o) => {
   const marker = new THREE.Mesh(MARKER_GEO, MARKER_MAT)
   marker.position.y = 1.1 / OBJECT_SCALE
   mesh.add(marker)
+  mesh.scale.setScalar(OBJECT_SCALE)
   mesh.position.set(o.x, o.y, o.z)
+  mesh.rotation.y = o.turn
   scene.add(mesh)
-  return { ...o, mesh, marker }
-})
+  return { ...o, mesh, marker, ...(extra ? { extra } : {}) }
+}
+
+const objects: readonly Item[] = OBJECTS.map((o) => buildItem(o))
 
 /** Objetos recién robados, con los segundos que llevan desapareciendo. */
 const vanishing = new Map<Item, number>()
@@ -309,15 +327,8 @@ for (const c of CHARACTERS) {
 }
 for (const n of allNpcs) place(n.fig, n.x, n.z, n.dir)
 
-const ring = new THREE.Mesh(
-  new THREE.RingGeometry(0.42, 0.55, 32).rotateX(-Math.PI / 2),
-  new THREE.MeshBasicMaterial({ color: 0x39ff88, transparent: true, opacity: 0.9, depthWrite: false }),
-)
-ring.visible = false
-scene.add(ring)
-
-/** Gotita de sudor sobre el jugador mientras algún vigilante lo tiene en su cono de visión. */
-const sweat = ((): THREE.Sprite => {
+/** Gota de sudor: se dibuja una vez y la comparten los dos jugadores. */
+const sweatTexture = ((): THREE.CanvasTexture => {
   const art = document.createElement('canvas')
   art.width = 64
   art.height = 96
@@ -341,13 +352,41 @@ const sweat = ((): THREE.Sprite => {
   ctx.beginPath()
   ctx.ellipse(22, 66, 5, 10, 0.3, 0, Math.PI * 2)
   ctx.fill()
-  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(art), transparent: true, depthTest: false }))
-  sprite.scale.set(0.55, 0.82, 1)
-  sprite.renderOrder = 10
-  sprite.visible = false
-  scene.add(sprite)
-  return sprite
+  return new THREE.CanvasTexture(art)
 })()
+
+/** Un jugador en la oficina: su personaje, su estado y lo que lo marca en pantalla (anillo de color y gotita de sudor). */
+interface Player {
+  readonly slot: 0 | 1
+  readonly color: number
+  char: Character
+  x: number
+  z: number
+  dir: number
+  grab: number
+  cooldown: number
+  cloakT: number
+  dashT: number
+  dashK: number
+  stealing: boolean
+  readonly ring: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>
+  readonly sweat: THREE.Sprite
+}
+
+function makePlayer(slot: 0 | 1, color: number, char: Character): Player {
+  const ring = new THREE.Mesh(
+    new THREE.RingGeometry(0.42, 0.55, 32).rotateX(-Math.PI / 2),
+    new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.9, depthWrite: false }),
+  )
+  ring.visible = false
+  scene.add(ring)
+  const sweat = new THREE.Sprite(new THREE.SpriteMaterial({ map: sweatTexture, transparent: true, depthTest: false }))
+  sweat.scale.set(0.55, 0.82, 1)
+  sweat.renderOrder = 10
+  sweat.visible = false
+  scene.add(sweat)
+  return { slot, color, char, x: SPAWN.x, z: SPAWN.z, dir: 0, grab: 0, cooldown: 0, cloakT: 0, dashT: 0, dashK: 1, stealing: false, ring, sweat }
+}
 
 type Phase = 'menu' | 'playing' | 'won' | 'busted'
 
@@ -362,16 +401,17 @@ let npcs: Npc[] = []
 let items: Item[] = []
 let total = 0
 let timeLeft = LEVEL_SECONDS
-let grab = 0
-let cooldown = 0
-let cloakT = 0
-let dashT = 0
-let dashK = 1
 let clock = 0
-const player: { char: Character; x: number; z: number; dir: number } = {
-  char: CHARACTERS[0] ?? (() => { throw new Error('Sin personajes') })(),
-  x: SPAWN.x, z: SPAWN.z, dir: 0,
-}
+/** Objetos extra de esta partida (solo con dos jugadores), cuántos faltan y el último robo del nivel retenido hasta completarlos. */
+let extraItems: Item[] = []
+let extrasLeft = 0
+let heldBase: Item | undefined
+const firstChar = CHARACTERS[0] ?? (() => { throw new Error('Sin personajes') })()
+/** Jugador 1 (anillo verde) y jugador 2 (anillo celeste). */
+const players: readonly [Player, Player] = [makePlayer(0, 0x39ff88, firstChar), makePlayer(1, 0x4dd2ff, firstChar)]
+const player = players[0]
+/** Quienes juegan el nivel en curso: solo el jugador 1, o los dos si hay dos celulares conectados. */
+let crew: readonly Player[] = [player]
 
 // ---------- Sonido ----------
 
@@ -398,7 +438,6 @@ const sfx = {
 
 /** Volumen de la música de suspenso; se crea al primer robo y queda sonando en silencio. */
 let suspense: GainNode | undefined
-let stealing = false
 
 /** Bajo que alterna dos notas a un semitono, con pulso. Suena solo mientras se roba. */
 function makeSuspense(ctx: AudioContext): GainNode {
@@ -432,12 +471,17 @@ function makeSuspense(ctx: AudioContext): GainNode {
 }
 
 /** Antifaz y música: puestos mientras roba, fuera en cuanto suelta. */
-function setStealing(on: boolean): void {
-  stealing = on
-  setMask(figureOf(player.char), on || player.char.hero === true)
-  if (!audio || (!on && !suspense)) return
+function setStealing(p: Player, on: boolean): void {
+  p.stealing = on
+  setMask(figureOf(p.char), on || p.char.hero === true)
+  const any = players.some((q) => q.stealing)
+  if (!audio || (!any && !suspense)) return
   suspense ??= makeSuspense(audio)
-  suspense.gain.setTargetAtTime(on ? 0.22 : 0, audio.currentTime, 0.04)
+  suspense.gain.setTargetAtTime(any ? 0.22 : 0, audio.currentTime, 0.04)
+}
+
+function stopStealing(): void {
+  for (const p of players) setStealing(p, false)
 }
 
 // ---------- Interfaz ----------
@@ -459,9 +503,14 @@ ui.innerHTML = `
       <div id="abilityName" class="text-xl text-sky-300"></div>
       <div id="abilityState" class="text-3xl"></div>
     </div>
+    <div id="ability2Box" class="ink hidden absolute right-4 bottom-24 text-right">
+      <div id="ability2Name" class="text-lg text-cyan-300"></div>
+      <div id="ability2State" class="text-2xl"></div>
+    </div>
     <div class="ink absolute bottom-10 left-1/2 flex pointer-coarse:bottom-60 -translate-x-1/2 flex-col items-center gap-2">
       <div id="prompt" class="text-2xl text-yellow-300"></div>
       <progress id="grab" max="1" value="0" class="h-3 w-56 accent-yellow-400"></progress>
+      <progress id="grab2" max="1" value="0" class="h-3 w-56 accent-cyan-400"></progress>
     </div>
     <div id="touch" class="hidden pointer-coarse:block">
       <div id="stick" class="pointer-events-auto absolute bottom-6 left-6 flex size-32 touch-none items-center justify-center rounded-full border-4 border-white/50 bg-black/30">
@@ -629,6 +678,10 @@ const dom = {
   abilityState: el<HTMLDivElement>('#abilityState'),
   prompt: el<HTMLDivElement>('#prompt'),
   grab: el<HTMLProgressElement>('#grab'),
+  grab2: el<HTMLProgressElement>('#grab2'),
+  ability2Box: el<HTMLDivElement>('#ability2Box'),
+  ability2Name: el<HTMLDivElement>('#ability2Name'),
+  ability2State: el<HTMLDivElement>('#ability2State'),
   roster: el<HTMLDivElement>('#roster'),
   radar: el<HTMLCanvasElement>('#radar'),
 }
@@ -689,7 +742,15 @@ function notify(text: string): void {
 }
 
 /** Muestra u oculta cada objeto según el progreso: lo robado no está, lo del nivel en curso lleva marcador. */
+function clearExtras(): void {
+  for (const e of extraItems) scene.remove(e.mesh)
+  extraItems = []
+  extrasLeft = 0
+  heldBase = undefined
+}
+
 function syncObjects(): void {
+  clearExtras()
   vanishing.clear()
   const stealable = !finished()
   for (const o of objects) {
@@ -978,7 +1039,7 @@ dom.langBtn.addEventListener('click', () => setLang(lang === 'es' ? 'en' : 'es')
 document.documentElement.lang = lang
 
 function showBanner(title: string, color: string, text: string, hint: string): void {
-  setStealing(false)
+  stopStealing()
   shot = undefined
   dom.mugshot.classList.add('hidden')
   dom.waitBannerBtn.classList.add('hidden')
@@ -994,7 +1055,7 @@ function showBanner(title: string, color: string, text: string, hint: string): v
 
 function showMenu(): void {
   phase = 'menu'
-  setStealing(false)
+  stopStealing()
   dom.hud.classList.add('hidden')
   dom.banner.classList.replace('flex', 'hidden')
   dom.menu.classList.remove('hidden')
@@ -1012,14 +1073,22 @@ function startLevel(): void {
   level = progress.level
   cfg = levelConfig(level)
   timeLeft = LEVEL_SECONDS
-  grab = 0
-  cooldown = 0
-  cloakT = 0
-  dashT = 0
-  Object.assign(player, { x: SPAWN.x, z: SPAWN.z, dir: -Math.PI / 2 })
 
-  const patrollers = PATROL_ORDER.filter((id) => id !== player.char.id).slice(0, cfg.patrols)
-  npcs = allNpcs.filter((npc) => npc.char !== player.char)
+  // Con dos celulares conectados se juega de a dos; el segundo personaje se asigna solo (en la etapa 2, lo elige cada uno).
+  const second = (remote?.connected() ?? 0) >= 2
+  const partner = players[1]
+  if (second) partner.char = CHARACTERS.find((c) => c.hero && c !== player.char) ?? CHARACTERS.find((c) => c !== player.char) ?? partner.char
+  crew = second ? players : [player]
+  for (const p of players) {
+    const s = resolveCircle(SPAWN.x + 0.9 * p.slot, SPAWN.z, PLAYER_R, SOLID)
+    Object.assign(p, { x: s.x, z: s.z, dir: -Math.PI / 2, grab: 0, cooldown: 0, cloakT: 0, dashT: 0, dashK: 1 })
+    p.ring.visible = crew.includes(p)
+    p.sweat.visible = false
+  }
+  const plays = (c: Character): boolean => crew.some((p) => p.char === c)
+
+  const patrollers = PATROL_ORDER.filter((id) => !crew.some((p) => p.char.id === id)).slice(0, cfg.patrols)
+  npcs = allNpcs.filter((npc) => !plays(npc.char))
   for (const npc of allNpcs) {
     const route = ROUTES[patrollers.indexOf(npc.char.id) % ROUTES.length]
     const start = route?.[0] ?? npc.char.home
@@ -1027,10 +1096,10 @@ function startLevel(): void {
       x: start.x, z: start.z, dir: npc.char.home.dir, route, wp: 1,
       lureT: 0, freezeT: 0, blindT: 0, seenT: 0,
     })
-    npc.cone.visible = npc.char !== player.char
+    npc.cone.visible = !plays(npc.char)
     npc.fig.visible = true
   }
-  for (const c of CHARACTERS) if (c.hero) figureOf(c).visible = c === player.char
+  for (const c of CHARACTERS) if (c.hero) figureOf(c).visible = plays(c)
 
   for (const chair of chairs) {
     chair.x = chair.home.x
@@ -1039,21 +1108,29 @@ function startLevel(): void {
   }
 
   syncObjects()
-  total = counts[level - 1] ?? 0
+  // De a dos hay más objetos: extras en escritorios libres que no se guardan en el progreso.
+  const base = counts[level - 1] ?? 0
+  if (second) {
+    extraItems = extraObjects(level, Math.ceil(base * COOP_EXTRA)).map((o) => buildItem(o, true))
+    extrasLeft = extraItems.length
+    items = [...items, ...extraItems]
+  }
+  total = base + extraItems.length
   report({ action: 'start', char: player.char.id }, onSaved, onSaveFailed)
 
   dom.mission.textContent = t('NIVEL {n} · ROBA {total} {things}', { n: level, total, things: thingsOf(level).toUpperCase() })
   dom.stars.textContent = starsText()
   dom.abilityName.textContent = t(player.char.ability.name)
+  dom.ability2Box.classList.toggle('hidden', !second)
+  dom.ability2Name.textContent = t(partner.char.ability.name)
   dom.menu.classList.add('hidden')
   dom.banner.classList.replace('flex', 'hidden')
   dom.hud.classList.remove('hidden')
-  ring.visible = true
   phase = 'playing'
 }
 
 /** `captured`: lo vio un vigilante. Suma una estrella; a la quinta se pierde un nivel. */
-function bust(reason: string, captured: boolean): void {
+function bust(reason: string, captured: boolean, culprit: Player = player): void {
   phase = 'busted'
   sfx.alarm()
   let text = reason
@@ -1074,7 +1151,7 @@ function bust(reason: string, captured: boolean): void {
   showBanner('BUSTED', 'text-red-500', text, pick('Toca para reintentar', 'OK: reintentar · Atrás: cambiar de personaje', 'ENTER: reintentar · ESC: cambiar de personaje'))
   if (!captured) return
   // Datos estáticos propios y un número: no hay entrada de usuario en este HTML.
-  const photo = mugshotHtml(player.char, progress.captures)
+  const photo = mugshotHtml(culprit.char, progress.captures)
   dom.mugshot.innerHTML = photo
   dom.mugshot.classList.remove('hidden')
   shot = mugshotCard(photo)
@@ -1104,16 +1181,16 @@ function win(): void {
 
 // ---------- Habilidades ----------
 
-function useAbility(): void {
-  const { effect, cooldown: wait } = player.char.ability
-  if (!effect || cooldown > 0 || phase !== 'playing') return
-  cooldown = wait ?? 0
+function useAbility(p: Player): void {
+  const { effect, cooldown: wait } = p.char.ability
+  if (!effect || p.cooldown > 0 || phase !== 'playing' || !crew.includes(p)) return
+  p.cooldown = wait ?? 0
   sfx.ability()
   const near = (radius: number): Npc[] =>
-    npcs.filter((n) => Math.hypot(n.x - player.x, n.z - player.z) <= radius)
+    npcs.filter((n) => Math.hypot(n.x - p.x, n.z - p.z) <= radius)
   switch (effect.kind) {
     case 'lure': {
-      const at = effect.at === 'self' ? { x: player.x, z: player.z } : CONFERENCE
+      const at = effect.at === 'self' ? { x: p.x, z: p.z } : CONFERENCE
       for (const n of near(effect.radius)) Object.assign(n, { lure: at, lureT: effect.seconds })
       break
     }
@@ -1124,11 +1201,11 @@ function useAbility(): void {
       for (const n of near(effect.radius)) Object.assign(n, { blindT: effect.seconds, blindK: effect.factor })
       break
     case 'cloak':
-      cloakT = effect.seconds
+      p.cloakT = effect.seconds
       break
     case 'dash':
-      dashT = effect.seconds
-      dashK = effect.factor
+      p.dashT = effect.seconds
+      p.dashK = effect.factor
       break
     case 'time':
       timeLeft += effect.seconds
@@ -1199,7 +1276,7 @@ addEventListener('touchmove', (e) => {
   if (e.touches.length > 1 || phase !== 'menu') e.preventDefault()
 }, { passive: false })
 addEventListener('gesturestart', (e) => e.preventDefault())
-dom.abilityBox.addEventListener('click', () => useAbility())
+dom.abilityBox.addEventListener('click', () => useAbility(player))
 dom.menuBtn.addEventListener('click', () => showMenu())
 dom.banner.addEventListener('click', confirm)
 /** El OK y las flechas del mando de la tele no siempre traen `code`; `key` sí. */
@@ -1220,21 +1297,21 @@ window.tvBack = () => {
 
 const padBoxes = { poster: el<HTMLDivElement>('#padPoster'), menu: el<HTMLDivElement>('#padMenu') }
 let remote: Remote | undefined
-/** Botones del celular ahora y en el cuadro anterior: ability, ok y back actúan al pulsar, grab mientras se mantiene. */
-let padHeld = 0
-let padWas = 0
+/** Botones de cada celular ahora y en el cuadro anterior: ability, ok y back actúan al pulsar, grab mientras se mantiene. */
+const padHeld: [number, number] = [0, 0]
+const padWas: [number, number] = [0, 0]
 
-function padStatus(status: RemoteStatus): void {
-  const text: Record<RemoteStatus, string> = {
-    connecting: t('Preparando el mando…'),
-    ready: t('Escanea con tu celular para controlar'),
-    paired: t('Celular conectado ✓'),
-    offline: t('Mando por celular no disponible'),
-  }
+function padStatus(status: RemoteStatus, connected: number): void {
+  const text = status === 'connecting' ? t('Preparando el mando…')
+    : status === 'offline' ? t('Mando por celular no disponible')
+    : connected === 0 ? t('Escanea con tu celular para controlar')
+    : connected === 1 ? t('Jugador 1 conectado ✓ Otro celular puede unirse para jugar de a dos')
+    : t('Jugadores 1 y 2 conectados ✓')
   for (const box of Object.values(padBoxes)) {
     const label = box.querySelector('.padText')
-    if (label) label.textContent = text[status]
-    for (const part of box.querySelectorAll('.padQr, .padCode')) part.classList.toggle('hidden', status === 'paired')
+    if (label) label.textContent = text
+    // El QR sigue a la vista hasta que entra el segundo jugador.
+    for (const part of box.querySelectorAll('.padQr, .padCode')) part.classList.toggle('hidden', connected >= 2)
   }
 }
 
@@ -1270,12 +1347,15 @@ function padOk(): void {
 }
 
 function pollPad(): void {
-  padHeld = remote?.source()?.buttons ?? 0
-  const pressed = padHeld & ~padWas
-  padWas = padHeld
-  if (pressed & PAD_BUTTON.ability) useAbility()
-  if (pressed & PAD_BUTTON.back) window.tvBack?.()
-  if (pressed & PAD_BUTTON.ok) padOk()
+  for (const slot of [0, 1] as const) {
+    const buttons = remote?.source(slot)?.buttons ?? 0
+    padHeld[slot] = buttons
+    const pressed = buttons & ~padWas[slot]
+    padWas[slot] = buttons
+    if (pressed & PAD_BUTTON.ability) useAbility(players[slot])
+    if (pressed & PAD_BUTTON.back) window.tvBack?.()
+    if (pressed & PAD_BUTTON.ok) padOk()
+  }
   // El código QR sobra en cuanto se pasa del póster.
   padBoxes.poster.classList.toggle('hidden', !TV || dom.poster.classList.contains('hidden'))
 }
@@ -1303,7 +1383,7 @@ addEventListener('keydown', (e) => {
   if (phase === 'playing' && (id.startsWith('Arrow') || id === 'Enter')) e.preventDefault()
   keys.add(id)
   if (e.repeat) return
-  if (ABILITY_KEYS.has(id) || ABILITY_KEYS.has(e.key)) useAbility()
+  if (ABILITY_KEYS.has(id) || ABILITY_KEYS.has(e.key)) useAbility(player)
   else if (id === 'Enter') confirm()
   else if (id === 'Escape' && phase !== 'menu') showMenu()
 })
@@ -1361,117 +1441,182 @@ function updateCone(n: Npc, range: number): void {
   attr.needsUpdate = true
 }
 
+/** Registra el robo de un objeto de pared: true si con él se supera el nivel. */
+function commitSteal(item: Item): boolean {
+  const next = steal(progress, item.index, counts)
+  if (!next) throw new Error(`Robo inválido: nivel ${progress.level}, objeto ${item.index}`)
+  const passed = next.level !== progress.level
+  progress = next
+  report({ action: 'steal', index: item.index }, onSaved, onSaveFailed)
+  return passed
+}
+
+/** Un objeto recién robado. Devuelve true si con él se supera el nivel. */
+function completeItem(target: Item): boolean {
+  if (target.extra) {
+    extrasLeft -= 1
+    if (extrasLeft > 0 || !heldBase) return false
+    const last = heldBase
+    heldBase = undefined
+    return commitSteal(last)
+  }
+  const next = steal(progress, target.index, counts)
+  if (!next) throw new Error(`Robo inválido: nivel ${progress.level}, objeto ${target.index}`)
+  // Con extras pendientes, el último objeto del nivel se retiene: el nivel no se cierra hasta robarlos todos.
+  if (next.level !== progress.level && extrasLeft > 0) {
+    heldBase = target
+    return false
+  }
+  return commitSteal(target)
+}
+
 function update(dt: number): void {
   clock += dt
   timeLeft -= dt
-  cooldown = Math.max(0, cooldown - dt)
-  cloakT = Math.max(0, cloakT - dt)
-  dashT = Math.max(0, dashT - dt)
+  for (const item of items) item.marker.rotateY(dt * 3)
 
-  let target: Item | undefined
-  let best = REACH
-  for (const item of items) {
-    const d = Math.hypot(item.x - player.x, item.z - player.z)
-    if (d <= best) {
-      best = d
-      target = item
+  // Cada jugador elige el objeto que tiene a mano, decide si roba y se mueve.
+  const plans: { readonly p: Player; readonly target: Item | undefined; readonly grabbing: boolean }[] = []
+  for (const p of crew) {
+    p.cooldown = Math.max(0, p.cooldown - dt)
+    p.cloakT = Math.max(0, p.cloakT - dt)
+    p.dashT = Math.max(0, p.dashT - dt)
+
+    let target: Item | undefined
+    let best = REACH
+    for (const item of items) {
+      const d = Math.hypot(item.x - p.x, item.z - p.z)
+      if (d <= best) {
+        best = d
+        target = item
+      }
     }
-    item.marker.rotateY(dt * 3)
+    // Teclado, mando de la tele y palanca táctil mueven al jugador 1; el celular de cada jugador, al suyo.
+    const own = p === player
+    const pad = remote?.source(p.slot)
+    const wantsGrab = (own && (keys.has('KeyE') || (TV && keys.has('Enter')))) || (padHeld[p.slot] & PAD_BUTTON.grab) !== 0
+    const grabbing = target !== undefined && wantsGrab
+    if (grabbing !== p.stealing) setStealing(p, grabbing)
+    plans.push({ p, target, grabbing })
+
+    // Pantalla: derecha = (1, -1), arriba = (-1, -1) sobre XZ.
+    const ix = (own ? held('KeyD', 'ArrowRight') - held('KeyA', 'ArrowLeft') + stick.x : 0) + (pad?.x ?? 0)
+    const iy = (own ? held('KeyW', 'ArrowUp') - held('KeyS', 'ArrowDown') + stick.y : 0) + (pad?.y ?? 0)
+    const mx = ix - iy
+    const mz = -ix - iy
+    const moving = !grabbing && (mx !== 0 || mz !== 0)
+    if (moving) {
+      const len = Math.hypot(mx, mz)
+      const speed = BASE_SPEED * (p.char.speed ?? 1) * (p.dashT > 0 ? p.dashK : 1)
+      let next = resolveCircle(p.x + (mx / len) * speed * dt, p.z + (mz / len) * speed * dt, PLAYER_R, SOLID)
+      for (const n of npcs) {
+        const dx = next.x - n.x
+        const dz = next.z - n.z
+        const d = Math.hypot(dx, dz)
+        if (d > 1e-6 && d < 0.6) next = { x: n.x + (dx / d) * 0.6, z: n.z + (dz / d) * 0.6 }
+      }
+      // Los dos jugadores tampoco se atraviesan.
+      for (const other of crew) {
+        if (other === p) continue
+        const dx = next.x - other.x
+        const dz = next.z - other.z
+        const d = Math.hypot(dx, dz)
+        if (d > 1e-6 && d < 0.6) next = { x: other.x + (dx / d) * 0.6, z: other.z + (dz / d) * 0.6 }
+      }
+      // ponytail: las sillas no chocan entre sí ni con los vigilantes; añadir si se nota al jugar.
+      for (const chair of chairs) {
+        let dx = chair.x - next.x
+        let dz = chair.z - next.z
+        let d = Math.hypot(dx, dz)
+        if (d >= CHAIR_GAP || d < 1e-6) continue
+        const pushed = resolveCircle(next.x + (dx / d) * CHAIR_GAP, next.z + (dz / d) * CHAIR_GAP, CHAIR_R, SOLID)
+        chair.x = pushed.x
+        chair.z = pushed.z
+        chair.mesh.position.set(chair.x, 0, chair.z)
+        // Silla trabada contra un mueble o pared: frena al jugador en vez de dejarlo atravesarla.
+        dx = chair.x - next.x
+        dz = chair.z - next.z
+        d = Math.hypot(dx, dz)
+        if (d > 1e-6 && d < CHAIR_GAP) next = { x: chair.x - (dx / d) * CHAIR_GAP, z: chair.z - (dz / d) * CHAIR_GAP }
+      }
+      p.x = next.x
+      p.z = next.z
+      p.dir = turnToward(p.dir, Math.atan2(mz, mx), 14 * dt)
+    } else if (target) {
+      p.dir = turnToward(p.dir, Math.atan2(target.z - p.z, target.x - p.x), 14 * dt)
+    }
+
+    const fig = figureOf(p.char)
+    place(fig, p.x, p.z, p.dir, moving ? clock * 11 : undefined)
+    fig.visible = p.cloakT <= 0 || Math.floor(clock * 12) % 2 === 0
+    p.ring.position.set(p.x, 0.05, p.z)
+    p.ring.material.color.set(p.cloakT > 0 ? 0xffffff : p.color)
   }
-  const grabbing = target !== undefined && (keys.has('KeyE') || (TV && keys.has('Enter')) || (padHeld & PAD_BUTTON.grab) !== 0)
-  if (grabbing !== stealing) setStealing(grabbing)
 
-  // Pantalla: derecha = (1, -1), arriba = (-1, -1) sobre XZ.
-  const pad = remote?.source()
-  const ix = held('KeyD', 'ArrowRight') - held('KeyA', 'ArrowLeft') + stick.x + (pad?.x ?? 0)
-  const iy = held('KeyW', 'ArrowUp') - held('KeyS', 'ArrowDown') + stick.y + (pad?.y ?? 0)
-  const mx = ix - iy
-  const mz = -ix - iy
-  const moving = !grabbing && (mx !== 0 || mz !== 0)
-  if (moving) {
-    const len = Math.hypot(mx, mz)
-    const speed = BASE_SPEED * (player.char.speed ?? 1) * (dashT > 0 ? dashK : 1)
-    let next = resolveCircle(player.x + (mx / len) * speed * dt, player.z + (mz / len) * speed * dt, PLAYER_R, SOLID)
-    for (const n of npcs) {
-      const dx = next.x - n.x
-      const dz = next.z - n.z
-      const d = Math.hypot(dx, dz)
-      if (d > 1e-6 && d < 0.6) next = { x: n.x + (dx / d) * 0.6, z: n.z + (dz / d) * 0.6 }
-    }
-    // ponytail: las sillas no chocan entre sí ni con los vigilantes; añadir si se nota al jugar.
-    for (const chair of chairs) {
-      let dx = chair.x - next.x
-      let dz = chair.z - next.z
-      let d = Math.hypot(dx, dz)
-      if (d >= CHAIR_GAP || d < 1e-6) continue
-      const pushed = resolveCircle(next.x + (dx / d) * CHAIR_GAP, next.z + (dz / d) * CHAIR_GAP, CHAIR_R, SOLID)
-      chair.x = pushed.x
-      chair.z = pushed.z
-      chair.mesh.position.set(chair.x, 0, chair.z)
-      // Silla trabada contra un mueble o pared: frena al jugador en vez de dejarlo atravesarla.
-      dx = chair.x - next.x
-      dz = chair.z - next.z
-      d = Math.hypot(dx, dz)
-      if (d > 1e-6 && d < CHAIR_GAP) next = { x: chair.x - (dx / d) * CHAIR_GAP, z: chair.z - (dz / d) * CHAIR_GAP }
-    }
-    player.x = next.x
-    player.z = next.z
-    player.dir = turnToward(player.dir, Math.atan2(mz, mx), 14 * dt)
-  } else if (target) {
-    player.dir = turnToward(player.dir, Math.atan2(target.z - player.z, target.x - player.x), 14 * dt)
-  }
-
-  const fig = figureOf(player.char)
-  place(fig, player.x, player.z, player.dir, moving ? clock * 11 : undefined)
-  fig.visible = cloakT <= 0 || Math.floor(clock * 12) % 2 === 0
-  ring.position.set(player.x, 0.05, player.z)
-  ring.material.color.set(cloakT > 0 ? 0x4dd2ff : 0x39ff88)
-
-  let caughtBy: Npc | undefined
-  let spotted = false
+  // Los vigilantes miran a todos: ven a quien tengan en su cono y se alarman si ese roba.
+  let caughtBy: { readonly npc: Npc; readonly by: Player } | undefined
+  const spotted = new Set<Player>()
   for (const n of npcs) {
     updateNpc(n, dt)
-    const range = cfg.range * (player.char.visibility ?? 1) * (n.blindT > 0 ? n.blindK : 1)
+    let range = 0
+    let sawAny = false
+    let grabber: Player | undefined
+    for (const { p, grabbing } of plans) {
+      const reach = cfg.range * (p.char.visibility ?? 1) * (n.blindT > 0 ? n.blindK : 1)
+      range = Math.max(range, reach)
+      const sees = p.cloakT <= 0 && canSee({ x: n.x, z: n.z, dir: n.dir, range: reach, halfAngle: cfg.halfAngle }, p, SIGHT)
+      if (!sees) continue
+      sawAny = true
+      spotted.add(p)
+      if (grabbing) grabber ??= p
+    }
     updateCone(n, range)
-    const sees = cloakT <= 0 && canSee({ x: n.x, z: n.z, dir: n.dir, range, halfAngle: cfg.halfAngle }, player, SIGHT)
-    n.seenT = sees && grabbing ? n.seenT + dt : 0
-    if (sees) spotted = true
-    n.cone.material.color.set(sees ? (grabbing ? CONE.alert : CONE.inside) : CONE.idle)
-    if (n.seenT > (player.char.grace ?? 0)) caughtBy ??= n
+    n.seenT = grabber ? n.seenT + dt : 0
+    n.cone.material.color.set(sawAny ? (grabber ? CONE.alert : CONE.inside) : CONE.idle)
+    if (grabber && n.seenT > (grabber.char.grace ?? 0)) caughtBy ??= { npc: n, by: grabber }
+  }
+  for (const p of crew) {
+    p.sweat.visible = spotted.has(p)
+    p.sweat.position.set(p.x, 2 + Math.sin(clock * 12) * 0.05, p.z)
   }
 
-  sweat.visible = spotted
-  sweat.position.set(player.x, 2 + Math.sin(clock * 12) * 0.05, player.z)
-
-  grab = grabbing ? grab + dt / (BASE_GRAB * (player.char.grabTime ?? 1)) : 0
-  if (caughtBy) return bust(t('¡{name} te vio robando!', { name: caughtBy.char.name }), true)
-  if (target && grab >= 1) {
-    const next = steal(progress, target.index, counts)
-    if (!next) throw new Error(`Robo inválido: nivel ${progress.level}, objeto ${target.index}`)
-    const passed = next.level !== progress.level
-    progress = next
-    report({ action: 'steal', index: target.index }, onSaved, onSaveFailed)
+  for (const { p, grabbing } of plans) p.grab = grabbing ? p.grab + dt / (BASE_GRAB * (p.char.grabTime ?? 1)) : 0
+  if (caughtBy) return bust(t('¡{name} te vio robando!', { name: caughtBy.npc.char.name }), true, caughtBy.by)
+  for (const { p, target } of plans) {
+    if (!target || p.grab < 1) continue
+    p.grab = 0
+    if (!items.includes(target)) continue // el otro jugador se lo llevó primero
     vanishing.set(target, 0)
     target.marker.visible = false
     items = items.filter((i) => i !== target)
-    grab = 0
     sfx.pick()
-    if (passed) return win()
+    if (completeItem(target)) return win()
   }
   if (timeLeft <= 0) return bust(t('Se acabó el tiempo'), false)
 
-  dom.prompt.textContent = target ? pick('MANTÉN ROBAR', 'MANTÉN OK PARA ROBAR', 'MANTÉN E PARA ROBAR') : ''
-  dom.grab.value = Math.min(grab, 1)
-  dom.grab.classList.toggle('invisible', !grabbing)
+  const lead = plans[0]
+  const mate = plans[1]
+  dom.prompt.textContent = lead?.target ? pick('MANTÉN ROBAR', 'MANTÉN OK PARA ROBAR', 'MANTÉN E PARA ROBAR') : ''
+  dom.grab.value = Math.min(player.grab, 1)
+  dom.grab.classList.toggle('invisible', !lead?.grabbing)
+  dom.grab2.classList.toggle('hidden', !mate)
+  dom.grab2.value = mate ? Math.min(mate.p.grab, 1) : 0
+  dom.grab2.classList.toggle('invisible', !mate?.grabbing)
+}
+
+/** Estado de la habilidad de un jugador: pasiva, usada, segundos de recarga o lista (con su botón). */
+function abilityText(p: Player, ready: string): string {
+  const { effect } = p.char.ability
+  return !effect ? t('PASIVA') : p.cooldown > 99 ? t('USADA') : p.cooldown > 0 ? `${Math.ceil(p.cooldown)} s` : ready
 }
 
 function drawHud(): void {
   dom.count.textContent = `${total - items.length} / ${total}`
-    const secs = Math.max(0, Math.ceil(timeLeft))
+  const secs = Math.max(0, Math.ceil(timeLeft))
   dom.timer.textContent = `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`
   dom.timer.classList.toggle('text-red-500', timeLeft <= 10)
-  const { effect } = player.char.ability
-  dom.abilityState.textContent = !effect ? t('PASIVA') : cooldown > 99 ? t('USADA') : cooldown > 0 ? `${Math.ceil(cooldown)} s` : pick('TOCA · LISTA', 'PLAY · LISTA', 'Q · LISTA')
+  dom.abilityState.textContent = abilityText(player, pick('TOCA · LISTA', 'PLAY · LISTA', 'Q · LISTA'))
+  dom.ability2State.textContent = abilityText(players[1], t('LISTA'))
 
   const k = dom.radar.width / MAP.w
   radar.clearRect(0, 0, dom.radar.width, dom.radar.height)
@@ -1485,7 +1630,7 @@ function drawHud(): void {
   }
   for (const n of npcs) dot(n, '#ff4d4d', 2.5)
   for (const item of items) dot(item, '#ffd400', 4)
-  dot(player, '#39ff88', 4)
+  for (const p of crew) dot(p, p === player ? '#39ff88' : '#4dd2ff', 4)
 }
 
 syncObjects()
@@ -1496,13 +1641,25 @@ function frame(now: number): void {
   const dt = Math.min((now - last) / 1000, 0.05)
   last = now
   pollPad()
-  if (phase !== 'playing') sweat.visible = false
+  if (phase !== 'playing') for (const p of players) p.sweat.visible = false
+  let wantZoom = phase === 'won' || phase === 'busted' ? zoom : 1
   if (phase === 'playing') {
     update(dt)
     drawHud()
-    lookAt(player.x, player.z)
+    // Cámara en el punto medio de quienes juegan; con dos se aleja lo justo para que quepan.
+    const [a, b] = crew
+    if (a && b) {
+      lookAt((a.x + b.x) / 2, (a.z + b.z) / 2)
+      wantZoom = coopZoom(a, b, innerWidth / innerHeight, baseView())
+    } else {
+      lookAt(player.x, player.z)
+    }
   } else if (phase === 'menu') {
     lookAt(MAP.w / 2, MAP.d / 2)
+  }
+  if (Math.abs(wantZoom - zoom) > 0.002) {
+    zoom += (wantZoom - zoom) * Math.min(1, dt * 3)
+    applyView()
   }
   // Lo robado sube girando y se encoge hasta desaparecer.
   for (const [item, t] of vanishing) {

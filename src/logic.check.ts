@@ -4,11 +4,11 @@ import { decode, encode, parseClaim, parseEntry } from '../api/scores.ts'
 import { POST } from '../api/play.ts'
 import { POST as joinWaitlist } from '../api/waitlist.ts'
 import { EN } from './i18n.ts'
-import { CHAIRS, CHARACTERS, FURNITURE, MAP, OBJECTS, ROUTES, SPAWN, WALLS } from './data.ts'
+import { CHAIRS, CHARACTERS, FURNITURE, MAP, OBJECTS, ROUTES, SPAWN, WALLS, extraObjects } from './data.ts'
 import { COUNTS, LEVELS } from './levels.ts'
 import { FRESH, MAX_STARS, caught, steal, type Progress } from './progress.ts'
-import { PAD_BUTTON, parsePadState, parseToy } from './padState.ts'
-import { box, canSee, rayDistance, resolveCircle, turnToward } from './logic.ts'
+import { PAD_BUTTON, parseHostMessage, parsePadState, parseToy } from './padState.ts'
+import { coopZoom, MAX_ZOOM, box, canSee, rayDistance, resolveCircle, turnToward } from './logic.ts'
 
 const viewer = { x: 0, z: 0, dir: 0, range: 5, halfAngle: Math.PI / 6 }
 const wall = [box(2, 0, 0.3, 4)]
@@ -165,5 +165,28 @@ assert.equal(parseToy({ toy: 'm6GgxxLDPO-epjJIwfmAiw' }), 'm6GgxxLDPO-epjJIwfmAi
 assert.equal(parseToy({ toy: 'corta' }), undefined, 'rechaza credenciales cortas')
 assert.equal(parseToy({ toy: '../../etc/passwd/xxxxxxxx' }), undefined, 'rechaza caracteres raros')
 assert.equal(parseToy([0, 0, 0]), undefined, 'un estado de mando no es un art toy')
+
+assert.deepEqual(parseHostMessage({ slot: 1 }), { slot: 1 }, 'jugador asignado')
+assert.deepEqual(parseHostMessage({ full: true }), { full: true }, 'sala llena')
+assert.equal(parseHostMessage({ slot: 2 }), undefined, 'solo hay dos jugadores')
+assert.equal(parseHostMessage([1]), undefined, 'un estado de mando no es un mensaje de la tele')
+
+// Objetos extra del modo de a dos: en escritorios libres, sin pisar los del nivel y fuera del progreso guardado.
+for (const kind of [1, 4, 10]) {
+  const extra = extraObjects(kind, 3)
+  assert.equal(extra.length, 3, `nivel ${kind}: tres extras`)
+  assert.ok(extra.every((o) => o.index < 0), 'los extras no tienen índice de progreso')
+  const base = OBJECTS.filter((o) => o.level === kind)
+  assert.ok(extra.every((o) => base.every((b) => Math.hypot(b.x - o.x, b.z - o.z) > 0.5)), `nivel ${kind}: no se superponen con los del nivel`)
+  assert.equal(new Set(extra.map((o) => `${o.x},${o.z}`)).size, 3, `nivel ${kind}: sitios distintos`)
+}
+assert.equal(extraObjects(1, 0).length, 0, 'sin extras')
+
+// Cámara compartida: juntos no hay zoom, lejos se aleja, y nunca pasa del máximo.
+const view = 15
+assert.equal(coopZoom({ x: 5, z: 5 }, { x: 6, z: 6 }, 16 / 9, view), 1, 'juntos: sin zoom')
+assert.ok(coopZoom({ x: 2, z: 2 }, { x: 30, z: 20 }, 16 / 9, view) > 1, 'lejos: se aleja')
+assert.equal(coopZoom({ x: 0, z: 0 }, { x: 400, z: 0 }, 16 / 9, view), MAX_ZOOM, 'tope de zoom')
+assert.ok(coopZoom({ x: 2, z: 2 }, { x: 30, z: 2 }, 9 / 16, view) > coopZoom({ x: 2, z: 2 }, { x: 30, z: 2 }, 16 / 9, view), 'pantalla estrecha: más zoom')
 
 console.log('logic ok')

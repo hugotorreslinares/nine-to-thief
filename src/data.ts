@@ -329,3 +329,26 @@ export function levelConfig(n: number): LevelConfig {
     walk: Math.min(1.2 + 0.15 * n, 2.4),
   }
 }
+
+/** Fracción de objetos extra por nivel cuando juegan dos (se afina jugando). */
+export const COOP_EXTRA = 0.4
+
+/**
+ * Objetos extra del modo de dos jugadores: en escritorios que el nivel no usa, repartidos según el nivel.
+ * No forman parte del progreso guardado: `index` es negativo.
+ */
+export function extraObjects(level: number, count: number): readonly OfficeObject[] {
+  const kind = LEVELS[level - 1]
+  if (!kind) throw new Error(`Nivel inválido: ${level}`)
+  const used = new Set(kind.places.filter((place): place is string => typeof place === 'string'))
+  const base = OBJECTS.filter((o) => o.level === level)
+  // Un escritorio libre pegado a uno del nivel (los hay enfrentados a 1 m) dejaría dos objetos casi encima.
+  const free = CHARACTERS.filter((c) => !used.has(c.id)).map((c, i): OfficeObject => ({ level, index: -(i + 1), y: 0.75, ...onDesk(c, kind.slot) }))
+    .filter((o) => base.every((b) => Math.hypot(b.x - o.x, b.z - o.z) > 0.7))
+  const n = Math.min(count, free.length)
+  return Array.from({ length: n }, (_, i): OfficeObject => {
+    const pick = free[(level + i) % free.length]
+    if (!pick) throw new Error('Sin escritorio libre')
+    return { ...pick, index: -(i + 1) }
+  })
+}

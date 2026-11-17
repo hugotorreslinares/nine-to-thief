@@ -2,7 +2,7 @@
 import { Peer, type DataConnection } from 'peerjs'
 import './style.css'
 import { t } from './i18n.ts'
-import { PAD_BUTTON, peerId } from './padState.ts'
+import { PAD_BUTTON, parseHostMessage, peerId } from './padState.ts'
 
 const SEND_EVERY_MS = 100 // además de enviar al cambiar: si se pierde un mensaje, el siguiente lo corrige
 const STICK_TRAVEL = 56
@@ -21,6 +21,7 @@ el<HTMLDivElement>('#pad').innerHTML = `
   <div class="flex h-full flex-col justify-between p-4 pb-8">
     <div class="ink flex items-center justify-between gap-2">
       <span class="text-xl text-yellow-300">NINE TO <span class="text-emerald-400">THIEF</span></span>
+      <span id="slot" class="hidden rounded-full border-2 border-black px-3 py-0.5 text-base text-black"></span>
       <span id="status" class="font-sans text-sm text-neutral-300"></span>
     </div>
     <form id="join" hidden class="flex items-center justify-center gap-2">
@@ -43,6 +44,9 @@ el<HTMLDivElement>('#pad').innerHTML = `
   </div>`
 
 const status = el<HTMLSpanElement>('#status')
+const slotBadge = el<HTMLSpanElement>('#slot')
+/** Colores de cada jugador: los mismos que el anillo bajo su personaje en la tele. */
+const SLOT_COLORS = ['#39ff88', '#4dd2ff'] as const
 const form = el<HTMLFormElement>('#join')
 const codeInput = el<HTMLInputElement>('#code')
 const stickEl = el<HTMLDivElement>('#stick')
@@ -111,7 +115,9 @@ function connect(code: string): void {
   status.textContent = t('Conectando con {code}…', { code })
   form.hidden = true
   const peer = new Peer()
+  let failed = false
   const fail = (text: string): void => {
+    failed = true
     status.textContent = text
     form.hidden = false
     peer.destroy()
@@ -121,13 +127,23 @@ function connect(code: string): void {
     : t('Sin conexión ({type})', { type: err.type })))
   peer.on('open', () => {
     const c = peer.connect(peerId(code), { serialization: 'json' })
+    c.on('data', (data) => {
+      const message = parseHostMessage(data)
+      if (!message) return
+      if ('full' in message) return fail(t('Sala llena: ya hay 2 jugadores'))
+      slotBadge.textContent = t('JUGADOR {n}', { n: message.slot + 1 })
+      slotBadge.style.backgroundColor = SLOT_COLORS[message.slot]
+      slotBadge.classList.remove('hidden')
+    })
     c.on('open', () => {
       conn = c
       status.textContent = t('Conectado ✓')
       send()
     })
     c.on('close', () => {
+      if (failed) return // ya se mostró el motivo (por ejemplo, sala llena)
       conn = undefined
+      slotBadge.classList.add('hidden')
       fail(t('Conexión perdida'))
     })
   })

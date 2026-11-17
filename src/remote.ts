@@ -1,36 +1,46 @@
 // Lado del televisor del "celular como mando": abre una sala en el broker público de PeerJS y recibe
-// el estado del mando por un canal de datos WebRTC (directo entre dispositivos).
+// el estado de hasta dos mandos por canales de datos WebRTC (directos entre dispositivos).
 import { Peer, type DataConnection } from 'peerjs'
-import { parsePadState, parseToy, peerId, type PadState } from './padState.ts'
+import { parsePadState, parseToy, peerId, type HostMessage, type PadState } from './padState.ts'
 
 const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789' // sin caracteres ambiguos
-/** Sin mensajes en este tiempo se da por perdido el celular y se suelta la palanca. */
+/** Sin mensajes en este tiempo se suelta la palanca de ese celular (pantalla apagada, sin red). */
 const SILENCE_MS = 1500
+/** Un celular callado tanto tiempo deja su lugar a otro que quiera entrar. */
+const STALE_MS = 10_000
 
-export type RemoteStatus = 'connecting' | 'ready' | 'paired' | 'offline'
+export type RemoteStatus = 'connecting' | 'ready' | 'offline'
+export const MAX_PADS = 2
+
+interface Pad {
+  readonly conn: DataConnection
+  state: PadState
+  heardAt: number
+}
 
 export class Remote {
   readonly code = Array.from(crypto.getRandomValues(new Uint8Array(5)), (b) => ALPHABET[b % ALPHABET.length]).join('')
-  private state: PadState | undefined
-  private heardAt = 0
-  private conn: DataConnection | undefined
+  private readonly pads: (Pad | undefined)[] = Array.from({ length: MAX_PADS }, () => undefined)
+  private status: RemoteStatus = 'connecting'
+  private readonly onStatus: (status: RemoteStatus, connected: number) => void
 
   /** `onToy` recibe la credencial de un art toy que un celular envía para entrar a la tele. */
-  constructor(onStatus: (status: RemoteStatus) => void, onToy: (toy: string) => void) {
+  constructor(onStatus: (status: RemoteStatus, connected: number) => void, onToy: (toy: string) => void) {
+    this.onStatus = onStatus
     const peer = new Peer(peerId(this.code))
-    onStatus('connecting')
-    peer.on('open', () => onStatus('ready'))
+    this.notify()
+    peer.on('open', () => this.setStatus('ready'))
     peer.on('disconnected', () => {
-      if (!this.conn) onStatus('offline')
+      if (this.connected() === 0) this.setStatus('offline')
       if (!peer.destroyed) peer.reconnect()
     })
     peer.on('error', (err) => {
       console.warn(`Mando por celular: ${err.type}`)
-      if (!this.conn) onStatus('offline')
+      if (this.connected() === 0) this.setStatus('offline')
     })
     peer.on('connection', (conn) => {
       conn.on('data', (data) => {
-        // Un celular que solo trae un art toy no debe desconectar al que está jugando de mando.
+        // Un celular que solo trae un art toy no debe ocupar un lugar de mando.
         const toy = parseToy(data)
         if (toy) {
           onToy(toy)
@@ -39,25 +49,60 @@ export class Remote {
         }
         const next = parsePadState(data)
         if (!next) return
-        // Un solo celular de mando a la vez: el último en enviar su palanca sustituye al anterior.
-        if (this.conn !== conn) {
-          this.conn?.close()
-          this.conn = conn
-          onStatus('paired')
+        const known = this.pads.findIndex((pad) => pad?.conn === conn)
+        if (known >= 0) {
+          const pad = this.pads[known]
+          if (pad) {
+            pad.state = next
+            pad.heardAt = performance.now()
+          }
+          return
         }
-        this.state = next
-        this.heardAt = performance.now()
+        const slot = this.claimSlot()
+        if (slot < 0) {
+          conn.send({ full: true } satisfies HostMessage)
+          // Cerrar al instante puede cortar el aviso antes de que salga.
+          setTimeout(() => conn.close(), 500)
+          return
+        }
+        this.pads[slot] = { conn, state: next, heardAt: performance.now() }
+        conn.send({ slot: slot === 0 ? 0 : 1 } satisfies HostMessage)
+        this.notify()
       })
       conn.on('close', () => {
-        if (this.conn !== conn) return
-        this.conn = undefined
-        this.state = undefined
-        onStatus(peer.disconnected ? 'offline' : 'ready')
+        const slot = this.pads.findIndex((pad) => pad?.conn === conn)
+        if (slot < 0) return
+        this.pads[slot] = undefined
+        this.notify()
       })
     })
   }
 
-  /** Último estado del mando, o undefined si no hay celular o dejó de enviar (pantalla apagada, sin red). */
-  readonly source = (): PadState | undefined =>
-    this.state && performance.now() - this.heardAt < SILENCE_MS ? this.state : undefined
+  /** Primer lugar libre; si hay uno ocupado por un celular que lleva rato callado, lo libera. */
+  private claimSlot(): number {
+    const now = performance.now()
+    const slot = this.pads.findIndex((pad) => !pad || now - pad.heardAt > STALE_MS)
+    if (slot >= 0) this.pads[slot]?.conn.close()
+    return slot
+  }
+
+  private setStatus(next: RemoteStatus): void {
+    this.status = next
+    this.notify()
+  }
+
+  private notify(): void {
+    this.onStatus(this.status, this.connected())
+  }
+
+  /** Celulares conectados ahora (0, 1 o 2). */
+  connected(): number {
+    return this.pads.filter((pad) => pad !== undefined).length
+  }
+
+  /** Último estado del mando de ese jugador, o undefined si no hay celular o dejó de enviar. */
+  readonly source = (slot: number): PadState | undefined => {
+    const pad = this.pads[slot]
+    return pad && performance.now() - pad.heardAt < SILENCE_MS ? pad.state : undefined
+  }
 }
