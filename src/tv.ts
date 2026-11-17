@@ -40,7 +40,7 @@ root.innerHTML = `
   </header>
   <p class="font-sans text-lg text-neutral-200">${t('Roba objetos de la oficina sin que te vean, ahora en Android TV y Google TV. Gratis.')}</p>
   <a href="${APK_URL}" class="ink w-fit rounded-lg border-2 border-black bg-emerald-500 px-6 py-3 text-2xl hover:brightness-110">⬇ ${t('DESCARGAR APK')}</a>
-  <p class="-mt-3 font-sans text-sm text-neutral-400">nine-to-thief.apk · ${t('unos 5 MB')}</p>
+  <p class="-mt-3 font-sans text-sm text-neutral-400">nine-to-thief.apk · ${t('unos 7 MB')}</p>
   <section class="flex flex-col gap-3">
     <h2 class="ink text-2xl text-yellow-300">${t('CÓMO INSTALARLO')}</h2>
     <ol class="flex flex-col gap-3">${steps.map((text, i) => step(i + 1, text)).join('')}</ol>

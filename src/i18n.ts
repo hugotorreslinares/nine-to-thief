@@ -78,7 +78,7 @@ export const EN: Readonly<Record<string, string>> = {
   'JUEGA EN TU TELEVISOR': 'PLAY ON YOUR TV',
   'Roba objetos de la oficina sin que te vean, ahora en Android TV y Google TV. Gratis.': 'Steal things from the office without getting caught, now on Android TV and Google TV. Free.',
   'DESCARGAR APK': 'DOWNLOAD APK',
-  'unos 5 MB': 'about 5 MB',
+  'unos 7 MB': 'about 7 MB',
   'CÓMO INSTALARLO': 'HOW TO INSTALL',
   'ANTES DE INSTALAR': 'BEFORE YOU INSTALL',
   'En tu tele abre la tienda de aplicaciones e instala la app gratuita "Downloader".': 'On your TV, open the app store and install the free "Downloader" app.',
