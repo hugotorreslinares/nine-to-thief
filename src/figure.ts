@@ -95,6 +95,17 @@ export function buildFigure(look: Look): THREE.Group {
     part(SPHERE, look.top, [0.075, 0.075, 0.075], [0, 0, 0], shoulder)
     part(BOX, look.top, [0.1, 0.3, 0.1], [0, -0.16, 0], shoulder)
     part(SPHERE, look.skin, [0.065, 0.065, 0.065], [0, -0.35, 0], shoulder)
+    if (look.loot) {
+      if (side > 0) {
+        // Engrapador en la mano: base oscura y tapa amarilla.
+        part(BOX, 0x2f2f33, [0.3, 0.07, 0.13], [0.15, -0.37, 0], shoulder)
+        part(BOX, 0xf2c015, [0.32, 0.08, 0.14], [0.15, -0.3, 0], shoulder).rotation.z = 0.14
+      } else {
+        // Carpeta de cartón bajo el brazo.
+        part(BOX, 0xd9b98a, [0.26, 0.34, 0.045], [0.14, -0.27, 0.05], shoulder)
+        part(BOX, 0xc8a574, [0.26, 0.04, 0.047], [0.14, -0.11, 0.05], shoulder) // pestaña
+      }
+    }
     return shoulder
   }
   LIMBS.set(g, { legs: [leg(1), leg(-1)], arms: [arm(1), arm(-1)] })

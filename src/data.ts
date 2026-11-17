@@ -16,6 +16,8 @@ export interface Look {
   readonly skirt?: boolean
   readonly scale?: number
   readonly wide?: number
+  /** Lleva un engrapador en una mano y una carpeta bajo el otro brazo. */
+  readonly loot?: boolean
 }
 
 export type Effect =
@@ -57,7 +59,7 @@ const desk = (x: number, z: number): readonly [number, number, number, number] =
 export const CHARACTERS: readonly Character[] = [
   {
     id: 'nine', name: 'Nine', home: { x: 16, z: 16.3, dir: -S }, desk: desk(16, 15.3),
-    look: { skin: 0xe3b58a, hair: 0x3b3231, hairStyle: 'short', top: 0x1a1a1f, bottom: 0x1a1a1f, tie: 0xf97316 },
+    look: { skin: 0xe3b58a, hair: 0x3b3231, hairStyle: 'short', top: 0x1a1a1f, bottom: 0x1a1a1f, tie: 0xf97316, loot: true },
     hero: true, grabTime: 0.85,
     ability: { name: 'Modo sombra', text: 'Invisible para todos durante 2,5 s. Además roba 15 % más rápido.', cooldown: 20, effect: { kind: 'cloak', seconds: 2.5 } },
   },
