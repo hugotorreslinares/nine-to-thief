@@ -10,7 +10,7 @@ import { lang, setLang, t } from './i18n.ts'
 import { COUNTS, DEMO_COUNTS, LEVELS } from './levels.ts'
 import { FRESH, MAX_STARS, caught, steal, type Progress } from './progress.ts'
 import { PlayError, close, idle, joinWaitlist, open, register, report, type Account } from './session.ts'
-import { PAD_BUTTON } from './padState.ts'
+import { PAD_BUTTON, applyPick, type Picks } from './padState.ts'
 import { mugshotHtml, posterHtml } from './poster.ts'
 import qrcode from 'qrcode-generator'
 import { Remote, type RemoteStatus } from './remote.ts'
@@ -696,6 +696,13 @@ const starsText = (): string => '★'.repeat(progress.stars) + '☆'.repeat(MAX_
 const finished = (): boolean => progress.level > counts.length
 
 /** Pinta la línea de cuenta y el elenco. Con art toy, el personaje elegido queda fijo. */
+/** Marca J1 o J2 en el personaje que un celular ya eligió. Solo datos propios. */
+function pickTag(id: string): string {
+  const slot = picks.indexOf(id)
+  if (slot < 0) return ''
+  return `<span class="ml-auto self-start rounded px-2 text-sm font-bold text-black" style="background:${slot === 0 ? '#39ff88' : '#4dd2ff'}">J${slot + 1}</span>`
+}
+
 function renderMenu(): void {
   // textContent: el nombre lo escribió el jugador.
   dom.account.textContent = account
@@ -717,19 +724,29 @@ function renderMenu(): void {
       <span class="text-base text-sky-300">${t(c.ability.name)}</span>
       <span class="font-sans text-xs text-neutral-300">${t(c.ability.text)}</span>
     </span>
+    ${pickTag(c.id)}
   </button>`).join('')
 }
 
 dom.roster.addEventListener('click', (e) => {
   const button = e.target instanceof Element ? e.target.closest<HTMLButtonElement>('button[data-id]') : null
   const chosen = CHARACTERS.find((c) => c.id === button?.dataset.id)
-  if (!chosen || connecting) return
+  if (chosen) beginGame(chosen)
+})
+
+/** Empieza la partida con `chosen` como jugador 1 (el segundo, si lo hay, sale de lo que eligió su celular). */
+function beginGame(chosen: Character): void {
+  if (connecting) return
+  if (picks[1] === chosen.id && (remote?.connected() ?? 0) >= 2) {
+    notify(t('Ese personaje ya lo eligió el jugador 2'))
+    return
+  }
   audio ??= new AudioContext()
   player.char = chosen
   if (account) progress = { ...progress, char: progress.char ?? chosen.id }
   else progress = FRESH // la demo empieza de cero cada vez
   startLevel()
-})
+}
 
 // ---------- Art toy ----------
 
@@ -800,6 +817,9 @@ function signIn(next: Account): void {
   progress = next.progress
   counts = COUNTS
   player.char = CHARACTERS.find((c) => c.id === progress.char) ?? player.char
+  // Con art toy el jugador 1 es siempre el personaje de su cuenta: el segundo no puede repetirlo.
+  const mate = picks[1] === player.char.id ? null : picks[1]
+  setPicks([null, mate])
   syncObjects()
   renderMenu()
 }
@@ -1074,10 +1094,13 @@ function startLevel(): void {
   cfg = levelConfig(level)
   timeLeft = LEVEL_SECONDS
 
-  // Con dos celulares conectados se juega de a dos; el segundo personaje se asigna solo (en la etapa 2, lo elige cada uno).
+  // Con dos celulares conectados se juega de a dos. El segundo personaje es el que eligió su celular, o se asigna solo.
   const second = (remote?.connected() ?? 0) >= 2
   const partner = players[1]
-  if (second) partner.char = CHARACTERS.find((c) => c.hero && c !== player.char) ?? CHARACTERS.find((c) => c !== player.char) ?? partner.char
+  if (second) {
+    const wanted = CHARACTERS.find((c) => c.id === picks[1] && c !== player.char)
+    partner.char = wanted ?? CHARACTERS.find((c) => c.hero && c !== player.char) ?? CHARACTERS.find((c) => c !== player.char) ?? partner.char
+  }
   crew = second ? players : [player]
   for (const p of players) {
     const s = resolveCircle(SPAWN.x + 0.9 * p.slot, SPAWN.z, PLAYER_R, SOLID)
@@ -1301,7 +1324,36 @@ let remote: Remote | undefined
 const padHeld: [number, number] = [0, 0]
 const padWas: [number, number] = [0, 0]
 
+/** Qué personaje eligió cada celular (null: aún nada). Se publica a los celulares y se marca en el menú. */
+let picks: Picks = [null, null]
+
+function setPicks(next: Picks): void {
+  picks = next
+  remote?.setPicks(picks)
+  if (phase !== 'menu') return
+  // Repintar el menú no debe quitarle el foco al personaje que el mando de la tele tiene enfocado.
+  const focused = document.activeElement instanceof HTMLElement ? document.activeElement.dataset.id : undefined
+  renderMenu()
+  if (focused) dom.roster.querySelector<HTMLElement>(`[data-id="${focused}"]`)?.focus()
+}
+
+/** Un celular quiere ese personaje: solo desde el menú, sin repetir, y con art toy el jugador 1 no cambia. */
+function onPick(slot: 0 | 1, id: string): void {
+  if (phase !== 'menu') return remote?.setPicks(picks)
+  const known = new Set(CHARACTERS.map((c) => c.id))
+  const ownId = account ? player.char.id : undefined
+  const blocked = new Set<string>()
+  if (ownId && slot === 1) blocked.add(ownId)
+  if (ownId && slot === 0 && id !== ownId) blocked.add(id)
+  const next = applyPick(picks, slot, id, known, blocked)
+  if (next === picks) return remote?.setPicks(picks) // el celular vuelve a ver la lista como está
+  setPicks(next)
+}
+
 function padStatus(status: RemoteStatus, connected: number): void {
+  // Un celular que se va deja libre su personaje.
+  const gone = ([0, 1] as const).filter((slot) => picks[slot] !== null && remote !== undefined && !remote.occupied(slot))
+  if (gone.length > 0) setPicks([gone.includes(0) ? null : picks[0], gone.includes(1) ? null : picks[1]])
   const text = status === 'connecting' ? t('Preparando el mando…')
     : status === 'offline' ? t('Mando por celular no disponible')
     : connected === 0 ? t('Escanea con tu celular para controlar')
@@ -1316,7 +1368,7 @@ function padStatus(status: RemoteStatus, connected: number): void {
 }
 
 if (TV) {
-  remote = new Remote(padStatus, enterWithToy)
+  remote = new Remote(padStatus, enterWithToy, onPick)
   const qr = qrcode(0, 'M')
   qr.addData(`${location.origin}/pad.html?c=${remote.code}`)
   qr.make()
@@ -1341,9 +1393,16 @@ function enterWithToy(code: string): void {
 
 /** OK del celular: avanza el póster o el cartel; en el menú pulsa el personaje enfocado. */
 function padOk(): void {
-  const focused = document.activeElement
-  if (phase === 'menu' && dom.poster.classList.contains('hidden') && focused instanceof HTMLElement) focused.click()
-  else confirm()
+  if (phase === 'menu' && dom.poster.classList.contains('hidden')) {
+    // Con elecciones hechas desde los celulares, OK empieza con ellas; si no, pulsa el personaje enfocado en la tele.
+    const first = CHARACTERS.find((c) => c.id === picks[0])
+    if (first || picks[1] !== null) {
+      const fallback = CHARACTERS.find((c) => c.id !== picks[1]) ?? player.char
+      return beginGame(first ?? (player.char.id === picks[1] ? fallback : player.char))
+    }
+    const focused = document.activeElement
+    if (focused instanceof HTMLElement) focused.click()
+  } else confirm()
 }
 
 function pollPad(): void {

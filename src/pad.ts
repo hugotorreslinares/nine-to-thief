@@ -2,7 +2,8 @@
 import { Peer, type DataConnection } from 'peerjs'
 import './style.css'
 import { t } from './i18n.ts'
-import { PAD_BUTTON, parseHostMessage, peerId } from './padState.ts'
+import { CHARACTERS } from './data.ts'
+import { PAD_BUTTON, parseHostMessage, peerId, type Picks } from './padState.ts'
 
 const SEND_EVERY_MS = 100 // además de enviar al cambiar: si se pierde un mensaje, el siguiente lo corrige
 const STICK_TRAVEL = 56
@@ -19,11 +20,24 @@ const button = (id: string, label: string, style: string): string =>
 
 el<HTMLDivElement>('#pad').innerHTML = `
   <div class="flex h-full flex-col justify-between p-4 pb-8">
-    <div class="ink flex items-center justify-between gap-2">
-      <span class="text-xl text-yellow-300">NINE TO <span class="text-emerald-400">THIEF</span></span>
-      <span id="slot" class="hidden rounded-full border-2 border-black px-3 py-0.5 text-base text-black"></span>
-      <span id="status" class="font-sans text-sm text-neutral-300"></span>
+    <div class="flex flex-col gap-3">
+      <div class="ink flex items-center justify-between gap-2">
+        <span class="text-xl text-yellow-300">NINE TO <span class="text-emerald-400">THIEF</span></span>
+        <span id="slot" class="hidden rounded-full border-2 border-black px-3 py-0.5 text-base text-black"></span>
+        <span id="status" class="font-sans text-sm text-neutral-300"></span>
+      </div>
+      <div class="flex items-center gap-3">
+        <button id="choose" disabled class="ink cursor-pointer rounded-lg border-2 border-black bg-yellow-400 px-4 py-2 text-lg text-black disabled:opacity-40">${t('ELEGIR PERSONAJE')}</button>
+        <span id="mine" class="ink text-lg text-white"></span>
+      </div>
     </div>
+    <dialog id="roster" class="m-auto h-[85dvh] w-[92vw] max-w-md overflow-y-auto rounded-xl border-2 border-yellow-300 bg-neutral-900 p-4 text-white backdrop:bg-black/70">
+      <p class="mb-3 text-2xl text-yellow-300">${t('Elige tu personaje')}</p>
+      <div id="rosterList" class="grid grid-cols-2 gap-2"></div>
+      <form method="dialog" class="mt-4 text-right">
+        <button class="font-gta cursor-pointer rounded bg-neutral-700 px-4 py-1 text-lg text-white">${t('CERRAR')}</button>
+      </form>
+    </dialog>
     <form id="join" hidden class="flex items-center justify-center gap-2">
       <input id="code" maxlength="5" autocomplete="off" autocapitalize="characters" aria-label="${t('Código del juego')}" class="w-32 rounded-lg border-2 border-neutral-600 bg-neutral-900 px-3 py-2 text-center font-sans text-xl tracking-widest text-white uppercase" />
       <button class="cursor-pointer rounded-lg bg-yellow-300 px-4 py-2 text-xl text-black">${t('CONECTAR')}</button>
@@ -45,6 +59,10 @@ el<HTMLDivElement>('#pad').innerHTML = `
 
 const status = el<HTMLSpanElement>('#status')
 const slotBadge = el<HTMLSpanElement>('#slot')
+const chooseBtn = el<HTMLButtonElement>('#choose')
+const mine = el<HTMLSpanElement>('#mine')
+const rosterDialog = el<HTMLDialogElement>('#roster')
+const rosterList = el<HTMLDivElement>('#rosterList')
 /** Colores de cada jugador: los mismos que el anillo bajo su personaje en la tele. */
 const SLOT_COLORS = ['#39ff88', '#4dd2ff'] as const
 const form = el<HTMLFormElement>('#join')
@@ -53,6 +71,42 @@ const stickEl = el<HTMLDivElement>('#stick')
 const knob = el<HTMLDivElement>('#knob')
 
 let conn: DataConnection | undefined
+let slot: 0 | 1 | undefined
+let picks: Picks = [null, null]
+
+const hex = (n: number): string => `#${n.toString(16).padStart(6, '0')}`
+
+/** Lista de personajes: el mío resaltado, el del otro jugador ocupado. Se pinta con textContent: son datos propios, pero sin HTML. */
+function renderRoster(): void {
+  const other = slot === undefined ? null : picks[slot === 0 ? 1 : 0]
+  const own = slot === undefined ? null : picks[slot]
+  const ownChar = CHARACTERS.find((c) => c.id === own)
+  mine.textContent = ownChar ? t('Tu personaje: {name}', { name: ownChar.name }) : t('Aún no eliges: se te asigna uno')
+  chooseBtn.disabled = slot === undefined
+  rosterList.replaceChildren(...CHARACTERS.map((c) => {
+    const button = document.createElement('button')
+    const taken = c.id === other
+    button.disabled = taken
+    button.className = `flex cursor-pointer flex-col items-start gap-0.5 rounded-lg border-2 p-2 text-left disabled:cursor-not-allowed disabled:opacity-40 ${c.id === own ? 'border-yellow-300 bg-yellow-300/20' : 'border-neutral-700 bg-neutral-800'}`
+    const swatch = document.createElement('span')
+    swatch.className = 'h-1.5 w-full rounded'
+    swatch.style.backgroundColor = hex(c.look.top)
+    const name = document.createElement('span')
+    name.className = 'text-xl text-yellow-300'
+    name.textContent = c.hero ? `★ ${c.name}` : c.name
+    const ability = document.createElement('span')
+    ability.className = 'font-sans text-xs text-sky-300'
+    ability.textContent = taken ? t('Ocupado por el otro jugador') : t(c.ability.name)
+    button.append(swatch, name, ability)
+    button.addEventListener('click', () => {
+      conn?.send({ pick: c.id })
+      rosterDialog.close()
+    })
+    return button
+  }))
+}
+chooseBtn.addEventListener('click', () => rosterDialog.showModal())
+renderRoster()
 let x = 0
 let y = 0
 let buttons = 0
@@ -131,9 +185,15 @@ function connect(code: string): void {
       const message = parseHostMessage(data)
       if (!message) return
       if ('full' in message) return fail(t('Sala llena: ya hay 2 jugadores'))
+      if ('picks' in message) {
+        picks = message.picks
+        return renderRoster()
+      }
+      slot = message.slot
       slotBadge.textContent = t('JUGADOR {n}', { n: message.slot + 1 })
       slotBadge.style.backgroundColor = SLOT_COLORS[message.slot]
       slotBadge.classList.remove('hidden')
+      renderRoster()
     })
     c.on('open', () => {
       conn = c
@@ -143,6 +203,9 @@ function connect(code: string): void {
     c.on('close', () => {
       if (failed) return // ya se mostró el motivo (por ejemplo, sala llena)
       conn = undefined
+      slot = undefined
+      picks = [null, null]
+      renderRoster()
       slotBadge.classList.add('hidden')
       fail(t('Conexión perdida'))
     })

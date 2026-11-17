@@ -1,7 +1,7 @@
 // Lado del televisor del "celular como mando": abre una sala en el broker público de PeerJS y recibe
 // el estado de hasta dos mandos por canales de datos WebRTC (directos entre dispositivos).
 import { Peer, type DataConnection } from 'peerjs'
-import { parsePadState, parseToy, peerId, type HostMessage, type PadState } from './padState.ts'
+import { parsePadState, parsePick, parseToy, peerId, type HostMessage, type PadState, type Picks } from './padState.ts'
 
 const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789' // sin caracteres ambiguos
 /** Sin mensajes en este tiempo se suelta la palanca de ese celular (pantalla apagada, sin red). */
@@ -22,10 +22,18 @@ export class Remote {
   readonly code = Array.from(crypto.getRandomValues(new Uint8Array(5)), (b) => ALPHABET[b % ALPHABET.length]).join('')
   private readonly pads: (Pad | undefined)[] = Array.from({ length: MAX_PADS }, () => undefined)
   private status: RemoteStatus = 'connecting'
+  private picks: Picks = [null, null]
   private readonly onStatus: (status: RemoteStatus, connected: number) => void
 
-  /** `onToy` recibe la credencial de un art toy que un celular envía para entrar a la tele. */
-  constructor(onStatus: (status: RemoteStatus, connected: number) => void, onToy: (toy: string) => void) {
+  /**
+   * `onToy` recibe la credencial de un art toy que un celular envía para entrar a la tele;
+   * `onPick`, el personaje que un jugador quiere.
+   */
+  constructor(
+    onStatus: (status: RemoteStatus, connected: number) => void,
+    onToy: (toy: string) => void,
+    onPick: (slot: 0 | 1, id: string) => void,
+  ) {
     this.onStatus = onStatus
     const peer = new Peer(peerId(this.code))
     this.notify()
@@ -45,6 +53,12 @@ export class Remote {
         if (toy) {
           onToy(toy)
           conn.close()
+          return
+        }
+        const pick = parsePick(data)
+        if (pick) {
+          const owner = this.pads.findIndex((pad) => pad?.conn === conn)
+          if (owner >= 0) onPick(owner === 0 ? 0 : 1, pick)
           return
         }
         const next = parsePadState(data)
@@ -67,6 +81,7 @@ export class Remote {
         }
         this.pads[slot] = { conn, state: next, heardAt: performance.now() }
         conn.send({ slot: slot === 0 ? 0 : 1 } satisfies HostMessage)
+        conn.send({ picks: this.picks } satisfies HostMessage)
         this.notify()
       })
       conn.on('close', () => {
@@ -93,6 +108,17 @@ export class Remote {
 
   private notify(): void {
     this.onStatus(this.status, this.connected())
+  }
+
+  /** Publica quién eligió qué personaje a todos los celulares (y a los que entren después). */
+  setPicks(picks: Picks): void {
+    this.picks = picks
+    for (const pad of this.pads) pad?.conn.send({ picks } satisfies HostMessage)
+  }
+
+  /** Si hay un celular en ese lugar. */
+  occupied(slot: number): boolean {
+    return this.pads[slot] !== undefined
   }
 
   /** Celulares conectados ahora (0, 1 o 2). */

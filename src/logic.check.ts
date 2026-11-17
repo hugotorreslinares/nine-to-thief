@@ -7,7 +7,7 @@ import { EN } from './i18n.ts'
 import { CHAIRS, CHARACTERS, FURNITURE, MAP, OBJECTS, ROUTES, SPAWN, WALLS, extraObjects } from './data.ts'
 import { COUNTS, LEVELS } from './levels.ts'
 import { FRESH, MAX_STARS, caught, steal, type Progress } from './progress.ts'
-import { PAD_BUTTON, parseHostMessage, parsePadState, parseToy } from './padState.ts'
+import { PAD_BUTTON, applyPick, parseHostMessage, parsePadState, parsePick, parseToy, type Picks } from './padState.ts'
 import { coopZoom, MAX_ZOOM, box, canSee, rayDistance, resolveCircle, turnToward } from './logic.ts'
 
 const viewer = { x: 0, z: 0, dir: 0, range: 5, halfAngle: Math.PI / 6 }
@@ -170,6 +170,24 @@ assert.deepEqual(parseHostMessage({ slot: 1 }), { slot: 1 }, 'jugador asignado')
 assert.deepEqual(parseHostMessage({ full: true }), { full: true }, 'sala llena')
 assert.equal(parseHostMessage({ slot: 2 }), undefined, 'solo hay dos jugadores')
 assert.equal(parseHostMessage([1]), undefined, 'un estado de mando no es un mensaje de la tele')
+
+// Elección de personaje desde el celular: sin repetir, sin ids desconocidos y respetando lo bloqueado.
+const known = new Set(CHARACTERS.map((c) => c.id))
+const none: Picks = [null, null]
+const afterOne = applyPick(none, 0, 'bea', known)
+assert.deepEqual(afterOne, ['bea', null], 'el jugador 1 elige')
+assert.deepEqual(applyPick(afterOne, 1, 'nine', known), ['bea', 'nine'], 'el jugador 2 elige otro')
+assert.equal(applyPick(afterOne, 1, 'bea', known), afterOne, 'no se puede repetir el personaje del otro')
+assert.equal(applyPick(none, 0, 'fantasma', known), none, 'id desconocido')
+assert.equal(applyPick(none, 1, 'nine', known, new Set(['nine'])), none, 'personaje bloqueado (el del art toy)')
+assert.equal(applyPick(afterOne, 0, 'bea', known), afterOne, 'elegir lo mismo no cambia nada')
+assert.deepEqual(applyPick(afterOne, 0, 'marco', known), ['marco', null], 'cambiar de idea')
+assert.equal(parsePick({ pick: 'bea' }), 'bea', 'mensaje de elección válido')
+assert.equal(parsePick({ pick: '../x' }), undefined, 'rechaza ids raros')
+assert.equal(parsePick([1, 2, 3]), undefined, 'un estado de mando no es una elección')
+assert.deepEqual(parseHostMessage({ picks: ['bea', null] }), { picks: ['bea', null] }, 'estado de elecciones')
+assert.equal(parseHostMessage({ picks: ['bea'] }), undefined, 'estado de elecciones incompleto')
+assert.equal(parseHostMessage({ picks: ['BEA', null] }), undefined, 'estado de elecciones con id inválido')
 
 // Objetos extra del modo de a dos: en escritorios libres, sin pisar los del nivel y fuera del progreso guardado.
 for (const kind of [1, 4, 10]) {

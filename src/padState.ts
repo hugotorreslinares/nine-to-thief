@@ -31,12 +31,40 @@ export function parseToy(data: unknown): string | undefined {
   return typeof toy === 'string' && /^[\w-]{16,64}$/.test(toy) ? toy : undefined
 }
 
-/** Mensajes de la tele al celular: qué jugador es, o que la sala está llena. */
-export type HostMessage = { readonly slot: 0 | 1 } | { readonly full: true }
+/** Quién eligió qué personaje: [jugador 1, jugador 2]; null si aún no eligió. */
+export type Picks = readonly [string | null, string | null]
+
+const CHAR_ID = /^[a-z]{2,16}$/
+
+/** Mensaje del celular a la tele: el personaje que quiere jugar. */
+export function parsePick(data: unknown): string | undefined {
+  if (typeof data !== 'object' || data === null || Array.isArray(data)) return undefined
+  const { pick } = data as Record<string, unknown>
+  return typeof pick === 'string' && CHAR_ID.test(pick) ? pick : undefined
+}
+
+/**
+ * Aplica la elección de un jugador. Devuelve el mismo objeto si no cambia nada: personaje desconocido,
+ * ya elegido por el otro jugador o bloqueado por otra razón (por ejemplo, el protagonista de un art toy).
+ */
+export function applyPick(picks: Picks, slot: 0 | 1, id: string, known: ReadonlySet<string>, blocked: ReadonlySet<string> = new Set()): Picks {
+  const other = picks[slot === 0 ? 1 : 0]
+  if (!known.has(id) || blocked.has(id) || other === id || picks[slot] === id) return picks
+  return slot === 0 ? [id, picks[1]] : [picks[0], id]
+}
+
+/** Mensajes de la tele al celular: qué jugador es, quién eligió qué, o que la sala está llena. */
+export type HostMessage = { readonly slot: 0 | 1 } | { readonly picks: Picks } | { readonly full: true }
+
+const isPickId = (v: unknown): v is string | null => v === null || (typeof v === 'string' && CHAR_ID.test(v))
 
 export function parseHostMessage(data: unknown): HostMessage | undefined {
   if (typeof data !== 'object' || data === null || Array.isArray(data)) return undefined
-  const { slot, full } = data as Record<string, unknown>
+  const { slot, full, picks } = data as Record<string, unknown>
   if (slot === 0 || slot === 1) return { slot }
+  if (Array.isArray(picks) && picks.length === 2) {
+    const [first, second] = picks as unknown[]
+    if (isPickId(first) && isPickId(second)) return { picks: [first, second] }
+  }
   return full === true ? { full: true } : undefined
 }
