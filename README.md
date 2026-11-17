@@ -24,8 +24,9 @@ Completa tantos niveles como puedas y registra tu apodo en el menú para aparece
 | Robar | Mantén `E` | Mantén **ROBAR** |
 | Usar habilidad | `Q` | Toca la habilidad |
 | Abrir el menú | `Esc` | Botón **MENÚ** |
+| Acercar la vista (un jugador) | `Z` | Botón **ZOOM** |
 
-En la tele: flechas, **OK** (mantener para robar), **Play/Pausa** para la habilidad y **Atrás** para el menú. También se puede usar el celular como mando (ver Android TV).
+En la tele: flechas, **OK** (mantener para robar), **Play/Pausa** para la habilidad y **Atrás** para el menú. También se puede usar el celular como mando (ver Android TV). Durante la partida, una leyenda al pie recuerda los controles. El zoom cercano se recuerda en cada dispositivo y la tele arranca con la vista cercana; con dos jugadores la cámara compartida lo decide sola. En la tele se cambia desde el botón **ZOOM** del mando del celular.
 
 ## Desarrollo
 

@@ -28,7 +28,8 @@ el<HTMLDivElement>('#pad').innerHTML = `
       </div>
       <div class="flex items-center gap-3">
         <button id="choose" disabled class="ink cursor-pointer rounded-lg border-2 border-black bg-yellow-400 px-4 py-2 text-lg text-black disabled:opacity-40">${t('ELEGIR PERSONAJE')}</button>
-        <span id="mine" class="ink text-lg text-white"></span>
+        <span id="mine" class="ink min-w-0 flex-1 truncate text-lg text-white"></span>
+        <button id="zoom" class="ink cursor-pointer touch-none rounded-lg border-2 border-black bg-sky-400 px-3 py-2 text-lg text-black">${t('ZOOM')}</button>
       </div>
     </div>
     <dialog id="roster" class="m-auto h-[85dvh] w-[92vw] max-w-md overflow-y-auto rounded-xl border-2 border-yellow-300 bg-neutral-900 p-4 text-white backdrop:bg-black/70">
@@ -158,6 +159,7 @@ hold('grab', PAD_BUTTON.grab)
 hold('ability', PAD_BUTTON.ability)
 hold('ok', PAD_BUTTON.ok)
 hold('back', PAD_BUTTON.back)
+hold('zoom', PAD_BUTTON.zoom)
 
 // iOS ignora user-scalable=no: se cancelan el pellizco y los gestos de zoom.
 addEventListener('touchmove', (e) => e.preventDefault(), { passive: false })

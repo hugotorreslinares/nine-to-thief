@@ -27,8 +27,43 @@ const VIEW = 15
 const VIEW_SHORT = 10
 /** Ancho mínimo visible en metros: en vertical la cámara se aleja para no quedar a ciegas. */
 const MIN_VIEW_WIDTH = 10
+/** Con un solo jugador, la vista puede acercarse al personaje (se recuerda en cada dispositivo; la tele arranca cerca). */
+const ZOOM_KEY = 'office-theft-zoom'
+const CLOSE_ZOOM = 0.62
+
+function loadCloseUp(): boolean {
+  try {
+    const saved = localStorage.getItem(ZOOM_KEY)
+    if (saved === 'close' || saved === 'far') return saved === 'close'
+  } catch (err) {
+    console.warn('Sin acceso a localStorage', err)
+  }
+  return TV
+}
+
 /** Texto según el aparato: táctil, televisor o teclado. */
 const pick = (touch: string, tv: string, keyboard: string): string => t(TOUCH ? touch : TV ? tv : keyboard)
+/** Leyenda de controles durante la partida: teclas en cajitas y lo que hace cada una. Solo textos propios. */
+function legendHtml(): string {
+  const key = (k: string): string => `<kbd class="rounded bg-white px-1.5 font-sans font-bold text-black">${k}</kbd>`
+  const item = (keys: string, what: string): string => `<span class="flex items-center gap-1">${keys} <span>${what}</span></span>`
+  if (TV) {
+    return [
+      item(`${key('◀')}${key('▲')}${key('▼')}${key('▶')}`, t('MOVER')),
+      item(key('OK'), t('ROBAR (mantén)')),
+      item(key('PLAY'), t('HABILIDAD')),
+      item(key(t('ATRÁS')), t('MENÚ')),
+    ].join('')
+  }
+  return [
+    item(`${key('W')}${key('A')}${key('S')}${key('D')} / ${key('←')}${key('↑')}${key('↓')}${key('→')}`, t('MOVER')),
+    item(key('E'), t('ROBAR (mantén)')),
+    item(key('Q'), t('HABILIDAD')),
+    item(key('Z'), t('ZOOM')),
+    item(key('Esc'), t('MENÚ')),
+  ].join('')
+}
+
 /** Teclas de habilidad: Q, y en el mando de la tele Menú, los botones de colores y Play/Pausa. */
 const ABILITY_KEYS = new Set(['KeyQ', 'ContextMenu', 'ColorF0Red', 'ColorF1Green', 'ColorF2Yellow', 'ColorF3Blue', 'MediaPlayPause'])
 
@@ -432,6 +467,7 @@ let items: Item[] = []
 let total = 0
 let timeLeft = LEVEL_SECONDS
 let clock = 0
+let closeUp = loadCloseUp()
 /** Objetos extra de esta partida (solo con dos jugadores), cuántos faltan y el último robo del nivel retenido hasta completarlos. */
 let extraItems: Item[] = []
 let extrasLeft = 0
@@ -526,8 +562,12 @@ ui.innerHTML = `
     <div class="ink absolute top-3 right-3 flex flex-col items-end md:top-4 md:right-4">
       <div id="stars" class="text-xl text-yellow-400 md:text-3xl"></div>
       <div id="timer" class="text-4xl md:text-6xl"></div>
-      <button id="menuBtn" class="pointer-events-auto cursor-pointer rounded border-2 border-black bg-neutral-800/80 px-3 py-1 text-sm">${t('MENÚ')}</button>
+      <div class="flex gap-2">
+        <button id="zoomBtn" class="pointer-events-auto cursor-pointer rounded border-2 border-black bg-sky-500/80 px-3 py-1 text-sm">🔍 ${t('ZOOM')}</button>
+        <button id="menuBtn" class="pointer-events-auto cursor-pointer rounded border-2 border-black bg-neutral-800/80 px-3 py-1 text-sm">${t('MENÚ')}</button>
+      </div>
     </div>
+    <div id="legend" class="ink pointer-events-none absolute bottom-2 left-1/2 flex max-w-[68vw] -translate-x-1/2 flex-wrap items-center justify-center gap-x-4 gap-y-1 rounded-lg bg-black/55 px-3 py-1 text-xs pointer-coarse:hidden md:text-sm">${legendHtml()}</div>
     <canvas id="radar" width="192" height="90" class="absolute bottom-16 left-10 rotate-45 rounded border-2 border-black bg-black/60 pointer-coarse:top-24 pointer-coarse:bottom-auto pointer-coarse:left-0 pointer-coarse:scale-50"></canvas>
     <div id="abilityBox" class="ink pointer-events-auto absolute right-4 bottom-4 cursor-pointer touch-none text-right pointer-coarse:bottom-36">
       <div id="abilityName" class="text-xl text-sky-300"></div>
@@ -697,6 +737,7 @@ const dom = {
   grabBtn: el<HTMLButtonElement>('#grabBtn'),
   touch: el<HTMLDivElement>('#touch'),
   menuBtn: el<HTMLButtonElement>('#menuBtn'),
+  zoomBtn: el<HTMLButtonElement>('#zoomBtn'),
   abilityBox: el<HTMLDivElement>('#abilityBox'),
   poster: el<HTMLDivElement>('#poster'),
   banner: el<HTMLDivElement>('#banner'),
@@ -1184,6 +1225,7 @@ function startLevel(): void {
   dom.stars.textContent = starsText()
   dom.abilityName.textContent = t(player.char.ability.name)
   for (const p of crew) drawTag(p)
+  dom.zoomBtn.classList.toggle('hidden', second)
   dom.ability2Box.classList.toggle('hidden', !second)
   dom.ability2Name.textContent = t(partner.char.ability.name)
   dom.menu.classList.add('hidden')
@@ -1341,6 +1383,7 @@ addEventListener('touchmove', (e) => {
 addEventListener('gesturestart', (e) => e.preventDefault())
 dom.abilityBox.addEventListener('click', () => useAbility(player))
 dom.menuBtn.addEventListener('click', () => showMenu())
+dom.zoomBtn.addEventListener('click', toggleZoom)
 dom.banner.addEventListener('click', confirm)
 /** El OK y las flechas del mando de la tele no siempre traen `code`; `key` sí. */
 const keyId = (e: KeyboardEvent): string => (e.key === 'Enter' || e.key.startsWith('Arrow') ? e.key : e.code)
@@ -1447,6 +1490,17 @@ function padOk(): void {
   if (focused instanceof HTMLElement) focused.click()
 }
 
+/** Acerca o aleja la vista. Solo con un jugador: con dos, la cámara compartida los mantiene a ambos a la vista. */
+function toggleZoom(): void {
+  if (crew.length > 1) return
+  closeUp = !closeUp
+  try {
+    localStorage.setItem(ZOOM_KEY, closeUp ? 'close' : 'far')
+  } catch (err) {
+    console.warn('No se pudo guardar el zoom', err)
+  }
+}
+
 /** Celular que ya jugaba este nivel y dejó de enviar (se cayó la red o apagó la pantalla). */
 const PAD_QUIET_MS = 3000
 /** Segundos que la partida espera a que vuelva antes de seguir sin él. */
@@ -1479,6 +1533,7 @@ function pollPad(): void {
     const pressed = buttons & ~padWas[slot]
     padWas[slot] = buttons
     if (pressed & PAD_BUTTON.ability) useAbility(players[slot])
+    if (pressed & PAD_BUTTON.zoom) toggleZoom()
     if (pressed & PAD_BUTTON.back) window.tvBack?.()
     if (pressed & PAD_BUTTON.ok) padOk()
   }
@@ -1510,6 +1565,7 @@ addEventListener('keydown', (e) => {
   keys.add(id)
   if (e.repeat) return
   if (ABILITY_KEYS.has(id) || ABILITY_KEYS.has(e.key)) useAbility(player)
+  else if (id === 'KeyZ') toggleZoom()
   else if (id === 'Enter') confirm()
   else if (id === 'Escape' && phase !== 'menu') showMenu()
 })
@@ -1800,6 +1856,7 @@ function frame(now: number): void {
       wantZoom = coopZoom(a, b, innerWidth / innerHeight, baseView())
     } else {
       lookAt(player.x, player.z)
+      wantZoom = closeUp ? CLOSE_ZOOM : 1
     }
   } else if (phase === 'menu') {
     lookAt(MAP.w / 2, MAP.d / 2)

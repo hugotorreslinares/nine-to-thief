@@ -1,7 +1,7 @@
 // Estado del celular usado como mando del televisor.
 
 /** Botones del mando, en una máscara de bits. */
-export const PAD_BUTTON = { grab: 1, ability: 2, ok: 4, back: 8 } as const
+export const PAD_BUTTON = { grab: 1, ability: 2, ok: 4, back: 8, zoom: 16 } as const
 
 export interface PadState {
   /** palanca: -1 izquierda … +1 derecha */
@@ -21,7 +21,7 @@ export function parsePadState(data: unknown): PadState | undefined {
   if (typeof x !== 'number' || typeof y !== 'number' || typeof buttons !== 'number') return undefined
   if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isInteger(buttons)) return undefined
   const clamp = (v: number): number => Math.max(-1, Math.min(1, v))
-  return { x: clamp(x), y: clamp(y), buttons: buttons & 0xf }
+  return { x: clamp(x), y: clamp(y), buttons: buttons & 0x1f }
 }
 
 /** Credencial de un art toy enviada desde el celular a la tele. Mismo formato que la URL de la etiqueta. */
