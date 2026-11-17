@@ -316,6 +316,39 @@ const ring = new THREE.Mesh(
 ring.visible = false
 scene.add(ring)
 
+/** Gotita de sudor sobre el jugador mientras algún vigilante lo tiene en su cono de visión. */
+const sweat = ((): THREE.Sprite => {
+  const art = document.createElement('canvas')
+  art.width = 64
+  art.height = 96
+  const ctx = art.getContext('2d')
+  if (!ctx) throw new Error('Sin contexto 2D para la gotita')
+  const fill = ctx.createLinearGradient(0, 8, 0, 90)
+  fill.addColorStop(0, '#9be4ff')
+  fill.addColorStop(1, '#1f9be0')
+  ctx.beginPath()
+  ctx.moveTo(32, 6)
+  ctx.bezierCurveTo(40, 30, 56, 50, 56, 68)
+  ctx.arc(32, 68, 24, 0, Math.PI, false)
+  ctx.bezierCurveTo(8, 50, 24, 30, 32, 6)
+  ctx.fillStyle = fill
+  ctx.fill()
+  ctx.lineWidth = 5
+  ctx.lineJoin = 'round'
+  ctx.strokeStyle = '#111'
+  ctx.stroke()
+  ctx.fillStyle = 'rgba(255,255,255,0.85)'
+  ctx.beginPath()
+  ctx.ellipse(22, 66, 5, 10, 0.3, 0, Math.PI * 2)
+  ctx.fill()
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(art), transparent: true, depthTest: false }))
+  sprite.scale.set(0.55, 0.82, 1)
+  sprite.renderOrder = 10
+  sprite.visible = false
+  scene.add(sprite)
+  return sprite
+})()
+
 type Phase = 'menu' | 'playing' | 'won' | 'busted'
 
 let phase: Phase = 'menu'
@@ -1395,15 +1428,20 @@ function update(dt: number): void {
   ring.material.color.set(cloakT > 0 ? 0x4dd2ff : 0x39ff88)
 
   let caughtBy: Npc | undefined
+  let spotted = false
   for (const n of npcs) {
     updateNpc(n, dt)
     const range = cfg.range * (player.char.visibility ?? 1) * (n.blindT > 0 ? n.blindK : 1)
     updateCone(n, range)
     const sees = cloakT <= 0 && canSee({ x: n.x, z: n.z, dir: n.dir, range, halfAngle: cfg.halfAngle }, player, SIGHT)
     n.seenT = sees && grabbing ? n.seenT + dt : 0
+    if (sees) spotted = true
     n.cone.material.color.set(sees ? (grabbing ? CONE.alert : CONE.inside) : CONE.idle)
     if (n.seenT > (player.char.grace ?? 0)) caughtBy ??= n
   }
+
+  sweat.visible = spotted
+  sweat.position.set(player.x, 2 + Math.sin(clock * 12) * 0.05, player.z)
 
   grab = grabbing ? grab + dt / (BASE_GRAB * (player.char.grabTime ?? 1)) : 0
   if (caughtBy) return bust(t('¡{name} te vio robando!', { name: caughtBy.char.name }), true)
@@ -1458,6 +1496,7 @@ function frame(now: number): void {
   const dt = Math.min((now - last) / 1000, 0.05)
   last = now
   pollPad()
+  if (phase !== 'playing') sweat.visible = false
   if (phase === 'playing') {
     update(dt)
     drawHud()
