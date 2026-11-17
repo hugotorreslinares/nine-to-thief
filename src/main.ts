@@ -22,6 +22,19 @@ const VIEW_SHORT = 10
 /** Ancho mínimo visible en metros: en vertical la cámara se aleja para no quedar a ciegas. */
 const MIN_VIEW_WIDTH = 10
 const TOUCH = matchMedia('(pointer: coarse)').matches
+/** Televisor Android: sin puntero ni teclado, solo el mando a distancia (flechas, OK, Atrás, Menú). */
+const TV = !TOUCH && (/Android/i.test(navigator.userAgent) || new URLSearchParams(location.search).has('tv'))
+/** Texto según el aparato: táctil, televisor o teclado. */
+const pick = (touch: string, tv: string, keyboard: string): string => t(TOUCH ? touch : TV ? tv : keyboard)
+/** Teclas de habilidad: Q, y en el mando de la tele Menú, los botones de colores y Play/Pausa. */
+const ABILITY_KEYS = new Set(['KeyQ', 'ContextMenu', 'ColorF0Red', 'ColorF1Green', 'ColorF2Yellow', 'ColorF3Blue', 'MediaPlayPause'])
+
+declare global {
+  interface Window {
+    /** Lo llama la app Android al pulsar Atrás: true si el juego lo gestionó, false para cerrar la app. */
+    tvBack?: () => boolean
+  }
+}
 const RAYS = 20
 const WALL_H = 1.2
 const CONE = { idle: 0xffe066, inside: 0xff9f1a, alert: 0xff2d2d } as const
@@ -474,7 +487,7 @@ ui.innerHTML = `
       </form>
     </dialog>
     <div id="roster" class="grid w-full max-w-6xl grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4"></div>
-    <p class="ink text-center text-base text-neutral-300 md:text-lg">${TOUCH ? t('Palanca: moverse · mantén ROBAR · toca la habilidad para usarla') : t('WASD / flechas: moverse · mantén E: robar · Q: habilidad · Esc: menú')}</p>
+    <p class="ink text-center text-base text-neutral-300 md:text-lg">${pick('Palanca: moverse · mantén ROBAR · toca la habilidad para usarla', 'Flechas: moverse · mantén OK: robar · MENÚ o ROJO: habilidad · Atrás: menú', 'WASD / flechas: moverse · mantén E: robar · Q: habilidad · Esc: menú')}</p>
     <footer class="mt-4 flex w-full max-w-6xl flex-col items-center gap-3 border-t-2 border-neutral-700 pt-5 pb-6 text-center font-sans text-sm text-neutral-400">
       <a href="https://www.instagram.com/mrmonomalo/" target="_blank" rel="noopener noreferrer" class="flex items-center gap-2 rounded-full border-2 border-black bg-linear-to-r from-fuchsia-600 via-rose-500 to-amber-400 px-4 py-2 text-base font-bold text-white hover:brightness-110">
         <svg viewBox="0 0 24 24" class="size-5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor"/></svg>
@@ -908,6 +921,7 @@ function showMenu(): void {
   settle()
   syncObjects()
   renderMenu()
+  focusRoster()
 }
 
 // ---------- Niveles ----------
@@ -976,7 +990,7 @@ function bust(reason: string, captured: boolean): void {
     }
     dom.stars.textContent = starsText()
   }
-  showBanner('BUSTED', 'text-red-500', text, TOUCH ? t('Toca para reintentar') : t('ENTER: reintentar · ESC: cambiar de personaje'))
+  showBanner('BUSTED', 'text-red-500', text, pick('Toca para reintentar', 'OK: reintentar · Atrás: cambiar de personaje', 'ENTER: reintentar · ESC: cambiar de personaje'))
   if (!captured) return
   // Datos estáticos propios y un número: no hay entrada de usuario en este HTML.
   const photo = mugshotHtml(player.char, progress.captures)
@@ -995,8 +1009,8 @@ function win(): void {
     bestLevel = level
     bestSeconds = Math.min(99, Math.max(0, spare))
   }
-  const more = TOUCH ? t('Toca para seguir') : t('ENTER: siguiente nivel')
-  const back = TOUCH ? t('Toca para volver al menú') : t('ENTER: volver al menú')
+  const more = pick('Toca para seguir', 'OK: siguiente nivel', 'ENTER: siguiente nivel')
+  const back = pick('Toca para volver al menú', 'OK: volver al menú', 'ENTER: volver al menú')
   if (!finished()) showBanner('MISSION PASSED!', 'text-yellow-300', t('Nivel {level} superado con {s} s de sobra', { level, s: spare }), more)
   else if (account) showBanner(t('¡OFICINA VACÍA!'), 'text-yellow-300', t('Te lo robaste todo. No queda nada.'), back)
   else {
@@ -1045,9 +1059,17 @@ function useAbility(): void {
 
 const keys = new Set<string>()
 
+/** En el televisor no hay puntero: lleva el foco al primer personaje. Con retraso para que el OK que lo provocó no lo pulse. */
+function focusRoster(): void {
+  if (TV) setTimeout(() => dom.roster.querySelector('button')?.focus(), 50)
+}
+
 /** Enter o toque: avanza desde el póster o desde el cartel de fin de nivel. */
 function confirm(): void {
-  if (phase === 'menu') dom.poster.classList.add('hidden')
+  if (phase === 'menu') {
+    dom.poster.classList.add('hidden')
+    focusRoster()
+  }
   else if (phase === 'won' || phase === 'busted') startLevel()
 }
 
@@ -1099,15 +1121,38 @@ addEventListener('gesturestart', (e) => e.preventDefault())
 dom.abilityBox.addEventListener('click', () => useAbility())
 dom.menuBtn.addEventListener('click', () => showMenu())
 dom.banner.addEventListener('click', confirm)
+/** El OK y las flechas del mando de la tele no siempre traen `code`; `key` sí. */
+const keyId = (e: KeyboardEvent): string => (e.key === 'Enter' || e.key.startsWith('Arrow') ? e.key : e.code)
+
+window.tvBack = () => {
+  const open = document.querySelector<HTMLDialogElement>('dialog[open]')
+  if (open) {
+    open.close()
+    return true
+  }
+  if (phase === 'menu') return false
+  showMenu()
+  return true
+}
+
+// TEMP-KEYS: muestra la última tecla del mando para comprobar qué envía cada botón; quitar tras probar en la tele.
+const keyDebug = document.createElement('div')
+keyDebug.className = 'fixed right-2 bottom-2 z-50 rounded bg-black/80 px-2 py-1 font-sans text-sm text-lime-300'
+if (TV) document.body.append(keyDebug)
+addEventListener('keydown', (e) => { keyDebug.textContent = `key=${e.key} code=${e.code} kc=${e.keyCode}` }, true)
+
 addEventListener('keydown', (e) => {
   if (e.target instanceof HTMLInputElement || dom.waitlist.open) return // escribiendo, o con la lista de espera abierta
-  keys.add(e.code)
+  const id = keyId(e)
+  // Jugando, las flechas y OK no deben mover el foco ni pulsar botones de la interfaz.
+  if (phase === 'playing' && (id.startsWith('Arrow') || id === 'Enter')) e.preventDefault()
+  keys.add(id)
   if (e.repeat) return
-  if (e.code === 'KeyQ') useAbility()
-  else if (e.code === 'Enter') confirm()
-  else if (e.code === 'Escape' && phase !== 'menu') showMenu()
+  if (ABILITY_KEYS.has(id) || ABILITY_KEYS.has(e.key)) useAbility()
+  else if (id === 'Enter') confirm()
+  else if (id === 'Escape' && phase !== 'menu') showMenu()
 })
-addEventListener('keyup', (e) => keys.delete(e.code))
+addEventListener('keyup', (e) => keys.delete(keyId(e)))
 dom.poster.addEventListener('click', confirm)
 addEventListener('blur', () => keys.clear())
 
@@ -1178,7 +1223,7 @@ function update(dt: number): void {
     }
     item.marker.rotateY(dt * 3)
   }
-  const grabbing = target !== undefined && keys.has('KeyE')
+  const grabbing = target !== undefined && (keys.has('KeyE') || (TV && keys.has('Enter')))
   if (grabbing !== stealing) setStealing(grabbing)
 
   // Pantalla: derecha = (1, -1), arriba = (-1, -1) sobre XZ.
@@ -1254,7 +1299,7 @@ function update(dt: number): void {
   }
   if (timeLeft <= 0) return bust(t('Se acabó el tiempo'), false)
 
-  dom.prompt.textContent = target ? (TOUCH ? t('MANTÉN ROBAR') : t('MANTÉN E PARA ROBAR')) : ''
+  dom.prompt.textContent = target ? pick('MANTÉN ROBAR', 'MANTÉN OK PARA ROBAR', 'MANTÉN E PARA ROBAR') : ''
   dom.grab.value = Math.min(grab, 1)
   dom.grab.classList.toggle('invisible', !grabbing)
 }
@@ -1265,7 +1310,7 @@ function drawHud(): void {
   dom.timer.textContent = `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`
   dom.timer.classList.toggle('text-red-500', timeLeft <= 10)
   const { effect } = player.char.ability
-  dom.abilityState.textContent = !effect ? t('PASIVA') : cooldown > 99 ? t('USADA') : cooldown > 0 ? `${Math.ceil(cooldown)} s` : TOUCH ? t('TOCA · LISTA') : t('Q · LISTA')
+  dom.abilityState.textContent = !effect ? t('PASIVA') : cooldown > 99 ? t('USADA') : cooldown > 0 ? `${Math.ceil(cooldown)} s` : pick('TOCA · LISTA', 'MENÚ · LISTA', 'Q · LISTA')
 
   const k = dom.radar.width / MAP.w
   radar.clearRect(0, 0, dom.radar.width, dom.radar.height)

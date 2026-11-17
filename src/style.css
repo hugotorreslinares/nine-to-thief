@@ -13,3 +13,10 @@
     1px -1px 0 #000,
     -1px 1px 0 #000;
 }
+
+/* Mando de la tele: el foco por flechas tiene que verse a tres metros. */
+button:focus-visible,
+input:focus-visible {
+  outline: 4px solid #fde047;
+  outline-offset: 3px;
+}
