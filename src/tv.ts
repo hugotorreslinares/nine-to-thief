@@ -1,4 +1,4 @@
-// Página /tv: descarga del APK para Android TV, instrucciones y aviso de proyecto de fans.
+// Página /tv: descarga del APK para Android TV, instrucciones y avisos.
 import './style.css'
 import { t } from './i18n.ts'
 
@@ -21,8 +21,7 @@ const steps = [
 ]
 
 const notes = [
-  t('Es un juego hecho por un fan, gratis, sin anuncios y sin pagos dentro de la app.'),
-  t('No tiene relación con la serie The Office, ni con sus creadores, productoras o cadenas. No está afiliado, patrocinado ni respaldado por ellos. Los nombres y personajes de la serie pertenecen a sus respectivos dueños.'),
+  t('Es un juego gratuito, sin anuncios y sin pagos dentro de la app.'),
   t('La app no está en Google Play: instálala solo desde esta página. Android avisará de que viene de un origen desconocido, es normal en las apps que no pasan por la tienda.'),
   t('En la tele se juega la demo (nivel 1). Para los 10 niveles, abre tu art toy en el celular, toca "Jugar en la tele" y escribe el código que muestra la tele.'),
   t('Probado en un televisor Hisense con Android 9. Necesita Android TV o Google TV con Android 7 o superior e internet.'),

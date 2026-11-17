@@ -67,6 +67,7 @@ const figureOf = (c: Character): THREE.Group => {
   if (!fig) throw new Error(`Sin figura para ${c.id}`)
   return fig
 }
+for (const c of CHARACTERS) if (c.hero) setMask(figureOf(c), true) // el antifaz no se quita nunca
 
 /** Retratos para el menú, sacados con el mismo renderer antes de montar la escena. */
 function renderPortraits(): Map<string, string> {
@@ -282,7 +283,8 @@ function makeCone(): Npc['cone'] {
   return cone
 }
 
-const allNpcs: readonly Npc[] = CHARACTERS.map((char, i) => {
+// El protagonista (el art toy) solo se juega: no se sienta en la oficina como vigilante.
+const allNpcs: readonly Npc[] = CHARACTERS.filter((c) => !c.hero).map((char, i) => {
   const fig = figureOf(char)
   scene.add(fig)
   return {
@@ -297,6 +299,13 @@ function place(fig: THREE.Group, x: number, z: number, dir: number, stride?: num
   fig.position.set(x, stride === undefined ? 0 : Math.abs(Math.sin(stride)) * 0.05, z)
   fig.rotation.y = -dir
   swingLimbs(fig, stride === undefined ? 0 : Math.sin(stride) * 0.6)
+}
+// La figura del protagonista está en escena solo mientras se juega con él.
+for (const c of CHARACTERS) {
+  if (!c.hero) continue
+  const fig = figureOf(c)
+  fig.visible = false
+  scene.add(fig)
 }
 for (const n of allNpcs) place(n.fig, n.x, n.z, n.dir)
 
@@ -392,7 +401,7 @@ function makeSuspense(ctx: AudioContext): GainNode {
 /** Antifaz y música: puestos mientras roba, fuera en cuanto suelta. */
 function setStealing(on: boolean): void {
   stealing = on
-  setMask(figureOf(player.char), on)
+  setMask(figureOf(player.char), on || player.char.hero === true)
   if (!audio || (!on && !suspense)) return
   suspense ??= makeSuspense(audio)
   suspense.gain.setTargetAtTime(on ? 0.22 : 0, audio.currentTime, 0.04)
@@ -526,7 +535,7 @@ ui.innerHTML = `
       <p>${t('Un juego y una colección de art toys. Sígueme en Instagram para ver los próximos personajes.')}</p>
       <p class="text-xs text-neutral-500">
         ${t('Código abierto en')} <a href="https://github.com/hugotorreslinares/nine-to-thief" target="_blank" rel="noopener noreferrer" class="text-sky-300 underline hover:text-sky-200">GitHub</a>
-        · ${t('Proyecto de fans sin ánimo de lucro, no afiliado a la serie ni a sus dueños.')}
+        · ${t('Todos los personajes y situaciones son ficticios.')}
       </p>
     </footer>
   </div>`
@@ -611,10 +620,11 @@ function renderMenu(): void {
   // Con un art toy abierto en este celular se puede mandar la partida a la tele.
   dom.tvLinkBtn.classList.toggle('hidden', account === undefined || tagCode === undefined || TV)
   dom.langBtn.classList.toggle('hidden', account !== undefined)
-  const own = account ? CHARACTERS.find((c) => c.id === progress.char) : undefined
+  // Con art toy se juega siempre con el protagonista (salvo cuentas antiguas con otro personaje).
+  const own = account ? CHARACTERS.find((c) => c.id === progress.char) ?? CHARACTERS.find((c) => c.hero) : undefined
   // Datos estáticos propios: no hay entrada de usuario en este HTML.
   dom.roster.innerHTML = (own ? [own] : CHARACTERS).map((c) => `
-  <button data-id="${c.id}" class="flex cursor-pointer items-center gap-3 rounded-lg border-2 border-neutral-700 bg-neutral-900/90 p-2 text-left hover:border-yellow-300 hover:bg-neutral-800">
+  <button data-id="${c.id}" class="flex cursor-pointer items-center gap-3 rounded-lg border-2 ${c.hero ? 'border-yellow-300' : 'border-neutral-700'} bg-neutral-900/90 p-2 text-left hover:border-yellow-300 hover:bg-neutral-800">
     <img src="${portraits.get(c.id) ?? ''}" alt="${c.name}" class="size-16 shrink-0 md:size-20" />
     <span class="flex flex-col">
       <span class="text-2xl text-yellow-300">${c.name}</span>
@@ -987,6 +997,7 @@ function startLevel(): void {
     npc.cone.visible = npc.char !== player.char
     npc.fig.visible = true
   }
+  for (const c of CHARACTERS) if (c.hero) figureOf(c).visible = c === player.char
 
   for (const chair of chairs) {
     chair.x = chair.home.x

@@ -22,21 +22,19 @@ interface Detail {
 }
 
 const DETAILS: Readonly<Record<string, Detail>> = {
-  michael: { neck: 'suit' },
-  jim: { hair: 'messy' },
-  pam: { hair: 'bob', lanyard: true },
-  ryan: { neck: 'suit' },
-  kelly: { earrings: true },
-  toby: { sad: true },
-  angela: { cat: true },
-  oscar: { glasses: true },
-  kevin: { neck: 'vest' },
-  stanley: { hair: 'crop' },
-  phyllis: { neck: 'vneck', glasses: true },
-  creed: { wrinkles: true },
-  meredith: { hair: 'top-bun', lanyard: true },
-  andy: { neck: 'vest', bowtie: true },
-  darryl: { neck: 'open', hair: 'crop' },
+  nine: { neck: 'suit' },
+  bea: { neck: 'suit', hair: 'bob' },
+  teo: { hair: 'messy' },
+  lucia: { hair: 'bob', lanyard: true },
+  omar: { neck: 'suit' },
+  sara: { earrings: true },
+  felix: { sad: true },
+  elsa: { glasses: true },
+  pablo: { glasses: true },
+  dani: { neck: 'vest' },
+  clara: { neck: 'vneck', glasses: true },
+  nacho: { wrinkles: true },
+  rita: { hair: 'top-bun', lanyard: true },
 }
 
 /** Dibuja una pieza y su reflejo respecto al eje de la cara. */

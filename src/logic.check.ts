@@ -123,16 +123,16 @@ if (existsSync(csv)) {
   const again = (await play({ action: 'register', code, name: 'Eva', email: 'eva@example.com' })).data
   assert.equal(again.name, 'Ana', 'una etiqueta ya registrada no cambia de dueño')
   const { session } = again
-  assert.equal((await play({ action: 'start', session: ana.session, char: 'pam' })).status, 401, 'un tap nuevo invalida la sesión anterior')
+  assert.equal((await play({ action: 'start', session: ana.session, char: 'lucia' })).status, 401, 'un tap nuevo invalida la sesión anterior')
   assert.equal((await play({ action: 'steal', session, index: 0 })).status, 409, 'no se roba sin intento en curso')
-  assert.deepEqual((await play({ action: 'start', session, char: 'pam' })).data.progress, { ...FRESH, char: 'pam' }, 'empieza y fija el personaje')
+  assert.deepEqual((await play({ action: 'start', session, char: 'lucia' })).data.progress, { ...FRESH, char: 'lucia' }, 'empieza y fija el personaje')
   assert.equal((await play({ action: 'steal', session, index: 99 })).status, 409, 'rechaza objetos de otro nivel')
-  assert.deepEqual((await play({ action: 'steal', session, index: 0 })).data.progress, { ...FRESH, char: 'pam', stolen: [0] }, 'guarda el robo')
+  assert.deepEqual((await play({ action: 'steal', session, index: 0 })).data.progress, { ...FRESH, char: 'lucia', stolen: [0] }, 'guarda el robo')
   assert.equal((await play({ action: 'steal', session, index: 1 })).status, 409, 'rechaza robos más rápidos de lo posible')
   assert.equal((await play({ action: 'caught', session })).status, 200, 'registra la captura')
   const back = (await play({ action: 'open', code })).data
-  assert.deepEqual(back.progress, { ...FRESH, char: 'pam', stolen: [0], stars: 1, captures: 1 }, 'al volver sigue donde lo dejó')
-  assert.deepEqual((await play({ action: 'start', session: back.session, char: 'jim' })).data.progress, back.progress, 'el personaje no se cambia')
+  assert.deepEqual(back.progress, { ...FRESH, char: 'lucia', stolen: [0], stars: 1, captures: 1 }, 'al volver sigue donde lo dejó')
+  assert.deepEqual((await play({ action: 'start', session: back.session, char: 'teo' })).data.progress, back.progress, 'el personaje no se cambia')
   const eve = (await play({ action: 'register', code: other, name: 'Eva', email: 'eva@example.com' })).data
   assert.deepEqual(eve.progress, FRESH, 'cada etiqueta tiene su propia partida')
 } else {

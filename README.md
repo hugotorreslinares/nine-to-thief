@@ -55,7 +55,7 @@ El juego está en español e inglés (`src/i18n.ts`): el español es el texto fu
 
 Niveles y objetos se configuran en `src/levels.ts`; las reglas de capturas y progreso están en `src/progress.ts`.
 
-Proyecto de fans sin ánimo de lucro, no afiliado a la serie ni a sus propietarios.
+Todos los personajes y situaciones son ficticios.
 
 ## Android TV
 

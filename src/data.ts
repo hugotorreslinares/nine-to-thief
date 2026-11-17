@@ -29,6 +29,8 @@ export type Effect =
 export interface Character {
   readonly id: string
   readonly name: string
+  /** El protagonista (el art toy): siempre enmascarado, no se sienta en la oficina como vigilante. */
+  readonly hero?: boolean
   readonly look: Look
   readonly home: Pt & { readonly dir: number }
   /** Escritorio: centro x, centro z, ancho, fondo. */
@@ -54,96 +56,96 @@ const desk = (x: number, z: number): readonly [number, number, number, number] =
 
 export const CHARACTERS: readonly Character[] = [
   {
-    id: 'michael', name: 'Michael', home: { x: 6, z: 1.1, dir: S }, desk: [6, 2.2, 2.4, 1.2],
-    look: { skin: SKIN, hair: 0x2b2118, hairStyle: 'short', top: 0x2f3640, bottom: 0x2f3640, tie: 0x8e2430 },
-    ability: { name: '¡Reunión!', text: 'Todos miran hacia la sala de reuniones 4 s.', cooldown: 18, effect: { kind: 'lure', radius: 10, seconds: 4, at: 'conference' } },
+    id: 'nine', name: 'Nine', home: { x: 16, z: 16.3, dir: -S }, desk: desk(16, 15.3),
+    look: { skin: 0xe3b58a, hair: 0x3b3231, hairStyle: 'short', top: 0x1a1a1f, bottom: 0x1a1a1f, tie: 0xf97316 },
+    hero: true, grabTime: 0.85,
+    ability: { name: 'Modo sombra', text: 'Invisible para todos durante 2,5 s. Además roba 15 % más rápido.', cooldown: 20, effect: { kind: 'cloak', seconds: 2.5 } },
   },
   {
-    id: 'dwight', name: 'Dwight', home: { x: 10.1, z: 10.2, dir: -S }, desk: desk(10.1, 9.2),
-    look: { skin: SKIN, hair: 0x5a4630, hairStyle: 'short', top: 0xc9a227, bottom: 0x5b4a32, tie: 0x6b4f1d, glasses: true },
-    ability: { name: 'Poder de remolacha', text: 'Corre 80 % más rápido durante 3 s.', cooldown: 14, effect: { kind: 'dash', seconds: 3, factor: 1.8 } },
+    id: 'bea', name: 'Bea', home: { x: 6, z: 1.1, dir: S }, desk: [6, 2.2, 2.4, 1.2],
+    look: { skin: 0xd9a87c, hair: 0xb8b8c0, hairStyle: 'long', top: 0x5b2a86, bottom: 0x2b2b35, skirt: true },
+    ability: { name: '¡Junta de emergencia!', text: 'Todos miran hacia la sala de reuniones 4 s.', cooldown: 18, effect: { kind: 'lure', radius: 10, seconds: 4, at: 'conference' } },
   },
   {
-    id: 'jim', name: 'Jim', home: { x: 10.1, z: 7.2, dir: S }, desk: desk(10.1, 8.2),
-    look: { skin: SKIN, hair: 0x4a3624, hairStyle: 'short', top: 0xdfe6f0, bottom: 0x3a3f4a, tie: 0x35507a, scale: 1.08 },
-    ability: { name: 'Mirada a cámara', text: 'Congela a los que están cerca 3,5 s.', cooldown: 18, effect: { kind: 'freeze', radius: 6, seconds: 3.5 } },
+    id: 'marco', name: 'Marco', home: { x: 10.1, z: 10.2, dir: -S }, desk: desk(10.1, 9.2),
+    look: { skin: 0xc98f64, hair: 0x1a1612, hairStyle: 'short', top: 0x2f7d6d, bottom: 0x3a3f4a, tie: 0xf2c14e, beard: true },
+    ability: { name: 'Café doble', text: 'Corre 80 % más rápido durante 3 s.', cooldown: 14, effect: { kind: 'dash', seconds: 3, factor: 1.8 } },
   },
   {
-    id: 'pam', name: 'Pam', home: { x: 3.6, z: 10.2, dir: -S }, desk: [3.6, 9.2, 2.6, 1],
-    look: { skin: SKIN, hair: 0xa9643a, hairStyle: 'long', top: 0xf2c6cf, bottom: 0x6b6f7a, skirt: true },
+    id: 'teo', name: 'Teo', home: { x: 10.1, z: 7.2, dir: S }, desk: desk(10.1, 8.2),
+    look: { skin: SKIN, hair: 0xc47a3a, hairStyle: 'short', top: 0x7fb2e5, bottom: 0x2e3a52, scale: 1.08 },
+    ability: { name: 'Chiste malo', text: 'Congela a los que están cerca 3,5 s.', cooldown: 18, effect: { kind: 'freeze', radius: 6, seconds: 3.5 } },
+  },
+  {
+    id: 'lucia', name: 'Lucía', home: { x: 3.6, z: 10.2, dir: -S }, desk: [3.6, 9.2, 2.6, 1],
+    look: { skin: 0xb9825a, hair: 0x2a1a14, hairStyle: 'long', top: 0xf28ab2, bottom: 0x5a4a6a, skirt: true },
     grabTime: 0.6,
-    ability: { name: 'Manos de recepcionista', text: 'Pasiva: roba 40 % más rápido.' },
+    ability: { name: 'Manos ágiles', text: 'Pasiva: roba 40 % más rápido.' },
   },
   {
-    id: 'ryan', name: 'Ryan', home: { x: 32.8, z: 11.6, dir: -S }, desk: desk(32.8, 10.6),
-    look: { skin: SKIN, hair: 0x1e1a17, hairStyle: 'short', top: 0x1f1f24, bottom: 0x1f1f24, tie: 0x555555, beard: true },
-    ability: { name: 'WUPHF', text: 'Toda la oficina mira el celular: ven la mitad 3,5 s.', cooldown: 20, effect: { kind: 'blind', radius: Infinity, seconds: 3.5, factor: 0.5 } },
+    id: 'omar', name: 'Omar', home: { x: 32.8, z: 11.6, dir: -S }, desk: desk(32.8, 10.6),
+    look: { skin: 0x8d5a3b, hair: 0x15110f, hairStyle: 'short', top: 0x22252b, bottom: 0x22252b, tie: 0x4cc9f0, glasses: true },
+    ability: { name: 'Notificación masiva', text: 'Toda la oficina mira el celular: ven la mitad 3,5 s.', cooldown: 20, effect: { kind: 'blind', radius: Infinity, seconds: 3.5, factor: 0.5 } },
   },
   {
-    id: 'kelly', name: 'Kelly', home: { x: 32.8, z: 8.6, dir: S }, desk: desk(32.8, 9.6),
-    look: { skin: 0xb9825a, hair: 0x15110f, hairStyle: 'long', top: 0xe84393, bottom: 0xe84393, skirt: true, scale: 0.92 },
-    ability: { name: 'Chisme', text: 'Los cercanos miran donde soltó el chisme 4 s.', cooldown: 15, effect: { kind: 'lure', radius: 8, seconds: 4, at: 'self' } },
+    id: 'sara', name: 'Sara', home: { x: 32.8, z: 8.6, dir: S }, desk: desk(32.8, 9.6),
+    look: { skin: SKIN, hair: 0xd1495b, hairStyle: 'bun', top: 0xffc857, bottom: 0x6b4f1d, skirt: true, scale: 0.92 },
+    ability: { name: 'Rumor de pasillo', text: 'Los cercanos miran donde soltó el chisme 4 s.', cooldown: 15, effect: { kind: 'lure', radius: 8, seconds: 4, at: 'self' } },
   },
   {
-    id: 'toby', name: 'Toby', home: { x: 36, z: 16.5, dir: -S }, desk: desk(36, 15.5),
-    look: { skin: SKIN, hair: 0xa08060, hairStyle: 'short', top: 0xc8b79a, bottom: 0x6e5e48, tie: 0x7a6a50 },
+    id: 'felix', name: 'Félix', home: { x: 36, z: 16.5, dir: -S }, desk: desk(36, 15.5),
+    look: { skin: 0xe0b48a, hair: 0x7a6a50, hairStyle: 'balding', top: 0x8a8f99, bottom: 0x555a64, tie: 0x6b7280 },
     grace: 0.7,
-    ability: { name: 'Nadie mira a Toby', text: 'Pasiva: tardan 0,7 s en notar que roba.' },
+    ability: { name: 'Invisible por costumbre', text: 'Pasiva: tardan 0,7 s en notar que roba.' },
   },
   {
-    id: 'angela', name: 'Angela', home: { x: 2.6, z: 12.2, dir: S }, desk: desk(2.6, 13.2),
-    look: { skin: SKIN, hair: 0xe8d48a, hairStyle: 'bun', top: 0x9aa5b1, bottom: 0x555c66, skirt: true, scale: 0.86 },
+    id: 'elsa', name: 'Elsa', home: { x: 2.6, z: 12.2, dir: S }, desk: desk(2.6, 13.2),
+    look: { skin: 0xd8a47f, hair: 0xece7dc, hairStyle: 'short', top: 0x2d6a4f, bottom: 0x3d405b, skirt: true, glasses: true, scale: 0.88 },
     visibility: 0.75,
     ability: { name: 'Bajo perfil', text: 'Pasiva: la ven 25 % menos lejos.' },
   },
   {
-    id: 'oscar', name: 'Oscar', home: { x: 2.6, z: 15.2, dir: -S }, desk: desk(2.6, 14.2),
-    look: { skin: 0xc99a72, hair: 0x1a1614, hairStyle: 'short', top: 0x7fa1c9, bottom: 0x3b3b44, tie: 0x2c3e50 },
-    ability: { name: 'En realidad…', text: 'Una vez por nivel: +10 s de tiempo.', cooldown: 999, effect: { kind: 'time', seconds: 10 } },
+    id: 'pablo', name: 'Pablo', home: { x: 2.6, z: 15.2, dir: -S }, desk: desk(2.6, 14.2),
+    look: { skin: 0xc99a72, hair: 0x1a1614, hairStyle: 'short', top: 0x6d597a, bottom: 0x3b3b44, tie: 0x2a9d8f, glasses: true },
+    ability: { name: 'Dato curioso', text: 'Una vez por nivel: +10 s de tiempo.', cooldown: 999, effect: { kind: 'time', seconds: 10 } },
   },
   {
-    id: 'kevin', name: 'Kevin', home: { x: 5.3, z: 13.7, dir: Math.PI }, desk: [4.2, 13.7, 1, 1.8],
-    look: { skin: SKIN, hair: 0x6b5a48, hairStyle: 'balding', top: 0x556b5a, bottom: 0x3b3b3b, tie: 0x7a2e2e, wide: 1.35 },
+    id: 'dani', name: 'Dani', home: { x: 5.3, z: 13.7, dir: Math.PI }, desk: [4.2, 13.7, 1, 1.8],
+    look: { skin: SKIN, hair: 0xc2410c, hairStyle: 'short', top: 0x8ecae6, bottom: 0x3b3b3b, tie: 0x264653, wide: 1.35 },
     speed: 0.85,
-    ability: { name: 'Chili derramado', text: 'Los cercanos miran el piso: ven 60 % menos 5 s. Es lento.', cooldown: 18, effect: { kind: 'blind', radius: 7, seconds: 5, factor: 0.4 } },
+    ability: { name: 'Café derramado', text: 'Los cercanos miran el piso: ven 60 % menos 5 s. Es lento.', cooldown: 18, effect: { kind: 'blind', radius: 7, seconds: 5, factor: 0.4 } },
   },
   {
-    id: 'stanley', name: 'Stanley', home: { x: 14.2, z: 7.2, dir: S }, desk: desk(14.2, 8.2),
-    look: { skin: 0x6b4a36, hair: 0x222222, hairStyle: 'balding', top: 0xd8d2c4, bottom: 0x4a4036, tie: 0x7b3f2a, glasses: true, mustache: true, wide: 1.25 },
-    ability: { name: '¿Acaso tartamudeé?', text: 'Congela a toda la oficina 2 s.', cooldown: 25, effect: { kind: 'freeze', radius: Infinity, seconds: 2 } },
+    id: 'ramon', name: 'Ramón', home: { x: 14.2, z: 7.2, dir: S }, desk: desk(14.2, 8.2),
+    look: { skin: 0xe0b48a, hair: 0x2b2b2b, hairStyle: 'bald', top: 0xb5651d, bottom: 0x4a4036, beard: true, wide: 1.25 },
+    ability: { name: 'Silencio incómodo', text: 'Congela a toda la oficina 2 s.', cooldown: 25, effect: { kind: 'freeze', radius: Infinity, seconds: 2 } },
   },
   {
-    id: 'phyllis', name: 'Phyllis', home: { x: 14.2, z: 10.2, dir: -S }, desk: desk(14.2, 9.2),
-    look: { skin: SKIN, hair: 0x9c5a3c, hairStyle: 'curly', top: 0x8e6bb0, bottom: 0x5a4a6a, skirt: true, wide: 1.25 },
+    id: 'clara', name: 'Clara', home: { x: 14.2, z: 10.2, dir: -S }, desk: desk(14.2, 9.2),
+    look: { skin: SKIN, hair: 0xc9c9d1, hairStyle: 'curly', top: 0x2a9d8f, bottom: 0x5a4a6a, skirt: true, wide: 1.25 },
     visibility: 0.85, grabTime: 0.8,
-    ability: { name: 'Inofensiva', text: 'Pasiva: la ven 15 % menos lejos y roba 20 % más rápido.' },
+    ability: { name: 'Cara de buena persona', text: 'Pasiva: la ven 15 % menos lejos y roba 20 % más rápido.' },
   },
   {
-    id: 'creed', name: 'Creed', home: { x: 9.2, z: 14, dir: S }, desk: desk(9.2, 15),
-    look: { skin: SKIN, hair: 0xcfcfcf, hairStyle: 'balding', top: 0x6f7f6a, bottom: 0x444444, tie: 0x333333 },
-    ability: { name: '¿Quién es Creed?', text: 'Invisible para todos durante 3 s.', cooldown: 18, effect: { kind: 'cloak', seconds: 3 } },
+    id: 'nacho', name: 'Nacho', home: { x: 9.2, z: 14, dir: S }, desk: desk(9.2, 15),
+    look: { skin: 0xb98a62, hair: 0xd0d0d0, hairStyle: 'balding', top: 0x445566, bottom: 0x444444, tie: 0x111111 },
+    ability: { name: 'Estornudo', text: 'Congela a los cercanos 2,5 s.', cooldown: 12, effect: { kind: 'freeze', radius: 4, seconds: 2.5 } },
   },
   {
-    id: 'meredith', name: 'Meredith', home: { x: 11, z: 16, dir: -S }, desk: desk(11, 15),
-    look: { skin: SKIN, hair: 0xb5452c, hairStyle: 'long', top: 0x3f7f6f, bottom: 0x333333, skirt: true },
-    ability: { name: 'Happy hour', text: 'Corre 45 % más rápido durante 5 s.', cooldown: 16, effect: { kind: 'dash', seconds: 5, factor: 1.45 } },
+    id: 'rita', name: 'Rita', home: { x: 11, z: 16, dir: -S }, desk: desk(11, 15),
+    look: { skin: SKIN, hair: 0x3d2b1f, hairStyle: 'long', top: 0x06d6a0, bottom: 0x333333, skirt: true },
+    ability: { name: 'Hora feliz', text: 'Corre 45 % más rápido durante 5 s.', cooldown: 16, effect: { kind: 'dash', seconds: 5, factor: 1.45 } },
   },
   {
-    id: 'andy', name: 'Andy', home: { x: 8.3, z: 7.2, dir: S }, desk: desk(8.3, 8.2),
-    look: { skin: SKIN, hair: 0x5b4028, hairStyle: 'short', top: 0xf3e9c9, bottom: 0xaa3333, tie: 0x2e5d9f },
-    ability: { name: 'Serenata a capela', text: 'Los cercanos miran donde cantó 3 s. Recarga corta.', cooldown: 10, effect: { kind: 'lure', radius: 10, seconds: 3, at: 'self' } },
-  },
-  {
-    id: 'darryl', name: 'Darryl', home: { x: 16, z: 16.3, dir: -S }, desk: desk(16, 15.3),
-    look: { skin: 0x5a3d2b, hair: 0x15110f, hairStyle: 'bald', top: 0x35507a, bottom: 0x2b2b2b, beard: true, scale: 1.1 },
-    speed: 1.15, grabTime: 0.85,
-    ability: { name: 'Paso de bodega', text: 'Pasiva: 15 % más rápido y roba 15 % más rápido.' },
+    id: 'ivan', name: 'Iván', home: { x: 8.3, z: 7.2, dir: S }, desk: desk(8.3, 8.2),
+    look: { skin: SKIN, hair: 0x1d3557, hairStyle: 'short', top: 0xff7f50, bottom: 0x1d3557, tie: 0xffd166 },
+    ability: { name: 'Karaoke de oficina', text: 'Los cercanos miran donde cantó 3 s. Recarga corta.', cooldown: 10, effect: { kind: 'lure', radius: 10, seconds: 3, at: 'self' } },
   },
 ]
 
 // ---------- Oficina (metros; x hacia la derecha, z hacia abajo) ----------
-// Sigue el plano de la serie a 1 m ≈ 20 px. De izquierda a derecha: la sala principal con el
-// vestíbulo, la oficina de Michael y la sala de reuniones arriba; el bloque central con la
+// Plano de una oficina de planta abierta a 1 m ≈ 20 px. De izquierda a derecha: la sala principal con el
+// vestíbulo, la oficina de Bea y la sala de reuniones arriba; el bloque central con la
 // escalera, la cocina (que conecta ambos lados) y los baños; y a la derecha el anexo con el
 // comedor arriba. La escalera y los baños están cerrados: son decorado.
 
@@ -153,7 +155,7 @@ export const CONFERENCE: Pt = { x: 13.75, z: 2.7 }
 
 export const ROOMS: readonly { readonly box: Box; readonly color: number }[] = [
   { box: box(1.5, 2.375, 3, 4.75), color: 0x6f7480 }, // vestíbulo
-  { box: box(6.05, 2.375, 6.1, 4.75), color: 0x6f7f95 }, // oficina de Michael
+  { box: box(6.05, 2.375, 6.1, 4.75), color: 0x6f7f95 }, // oficina de Bea
   { box: box(13.675, 2.375, 9.15, 4.75), color: 0x8c8474 }, // sala de reuniones
   { box: box(9.125, 11.125, 18.25, 12.75), color: 0x7f8793 }, // sala principal
   { box: box(23.25, 3.25, 10, 6.5), color: 0x4a4d55 }, // escalera
@@ -170,7 +172,7 @@ const vWall = (x: number, z1: number, z2: number): Box => box(x, (z1 + z2) / 2, 
 
 export const WALLS: readonly Box[] = [
   hWall(0, 38, 0), hWall(0, 38, 17.5), vWall(0, 0, 17.5), vWall(38, 0, 17.5),
-  // vestíbulo, oficina de Michael y sala de reuniones: una puerta cada uno hacia la sala principal
+  // vestíbulo, oficina de Bea y sala de reuniones: una puerta cada uno hacia la sala principal
   vWall(3, 0, 4.75), vWall(9.1, 0, 4.75),
   hWall(0, 1, 4.75), hWall(2.4, 7.5, 4.75), hWall(8.9, 9.3, 4.75), hWall(10.7, 18.25, 4.75),
   // despacho de la esquina
@@ -205,10 +207,10 @@ const plant = (x: number, z: number): Furniture => block(x, z, 0.45, 0.45, 0.4, 
 
 export const FURNITURE: readonly Furniture[] = [
   ...CHARACTERS.map((c): Furniture => ({ box: box(...c.desk), h: 0.75, color: 0x8a6a48, kind: 'desk' })),
-  // sala de reuniones y oficina de Michael
+  // sala de reuniones y oficina de Bea
   block(13.75, 2.7, 5, 1.8, 0.75, 0x5c4630), // mesa de reuniones
   block(13.75, 0.45, 2.4, 0.4, 0.7, WOOD), // aparador
-  block(3.5, 2.4, 0.6, 2, 1.7, WOOD, true), // estante de Michael
+  block(3.5, 2.4, 0.6, 2, 1.7, WOOD, true), // estante de Bea
   // sala principal
   block(3, 11.4, 5.4, 0.25, 1, CABINET), // mampara entre recepción y contabilidad
   block(17.6, 11.5, 1, 1.4, 1.1, 0xd9d9d9, false, 'copier'),
@@ -229,7 +231,7 @@ export const FURNITURE: readonly Furniture[] = [
   // anexo
   block(31.2, 1.5, 0.7, 2.4, 1.2, CABINET), // archivadores del pasillo
   block(28.9, 14.5, 0.7, 3.5, 1.8, WOOD, true), // estantes
-  block(33.4, 15.2, 0.6, 2.6, 1.8, WOOD, true), // estantes que aíslan a Toby
+  block(33.4, 15.2, 0.6, 2.6, 1.8, WOOD, true), // estantes que aíslan a Felix
   // comedor
   block(35, 1.75, 1.4, 1.4, 0.75, TABLE), block(33, 3.5, 1.4, 1.4, 0.75, TABLE), block(35, 5, 1.4, 1.4, 0.75, TABLE),
   block(37.3, 1.3, 1, 1.6, 2, 0xb03a2e, true), // máquina de snacks
@@ -246,7 +248,7 @@ export const CHAIRS: readonly (Pt & { readonly dir: number })[] = [
   { x: 12.3, z: 1.35, dir: S }, { x: 13.75, z: 1.35, dir: S }, { x: 15.2, z: 1.35, dir: S },
   { x: 12.3, z: 4.05, dir: -S }, { x: 13.75, z: 4.05, dir: -S }, { x: 15.2, z: 4.05, dir: -S },
   { x: 10.8, z: 2.7, dir: 0 }, { x: 16.7, z: 2.7, dir: Math.PI },
-  // visitas de Michael
+  // visitas de Bea
   { x: 5.4, z: 3.5, dir: -S }, { x: 6.6, z: 3.5, dir: -S },
   // comedor
   { x: 33.95, z: 1.75, dir: 0 }, { x: 36.05, z: 1.75, dir: Math.PI }, { x: 33, z: 2.4, dir: S },
@@ -291,7 +293,7 @@ export const OBJECTS: readonly OfficeObject[] = LEVELS.flatMap((kind, i) =>
 export const ROUTES: readonly (readonly Pt[])[] = [
   // vuelta a la sala principal
   [{ x: 6.4, z: 6.2 }, { x: 16.5, z: 6.2 }, { x: 16.5, z: 11 }, { x: 6.4, z: 11 }],
-  // oficina de Michael y sala de reuniones
+  // oficina de Bea y sala de reuniones
   [{ x: 8.2, z: 6.2 }, { x: 8.2, z: 3.9 }, { x: 7.6, z: 3.9 }, { x: 8.2, z: 3.9 }, { x: 8.2, z: 6.2 }, { x: 10, z: 6.2 }, { x: 10, z: 1.5 }, { x: 10, z: 6.2 }],
   // sala principal, cocina y anexo
   [{ x: 16.5, z: 9.5 }, { x: 19.5, z: 9.5 }, { x: 27, z: 9.5 }, { x: 29.8, z: 9.5 }, { x: 29.8, z: 12.4 }, { x: 29.8, z: 9.5 }, { x: 27, z: 9.5 }, { x: 19.5, z: 9.5 }],
@@ -302,7 +304,7 @@ export const ROUTES: readonly (readonly Pt[])[] = [
 ]
 
 /** Quién sale a patrullar primero al subir de nivel. */
-export const PATROL_ORDER: readonly string[] = ['dwight', 'michael', 'kelly', 'darryl', 'creed', 'angela', 'andy']
+export const PATROL_ORDER: readonly string[] = ['marco', 'bea', 'sara', 'dani', 'nacho', 'elsa', 'ivan']
 
 export interface LevelConfig {
   readonly range: number
