@@ -19,7 +19,7 @@ import { json, readJson, redis } from './scores.ts'
 const CODE = /^[A-Za-z0-9_-]{16,64}$/
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
 const NAME = /^[\p{L}\p{N} _.'-]{1,24}$/u
-const EMAIL = /^[^\s@]{1,64}@[^\s@]{1,180}\.[^\s@]{2,24}$/
+export const EMAIL = /^[^\s@]{1,64}@[^\s@]{1,180}\.[^\s@]{2,24}$/
 const CHAR = /^[a-z]{2,16}$/
 const SESSION_MS = 12 * 60 * 60 * 1000
 /** Un intento dura 60 s (+10 de Oscar); el resto es margen de red. */

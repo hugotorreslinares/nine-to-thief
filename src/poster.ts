@@ -1,4 +1,5 @@
 import { CHARACTERS, type Character, type Look } from './data.ts'
+import { t } from './i18n.ts'
 
 const hex = (n: number): string => `#${n.toString(16).padStart(6, '0')}`
 
@@ -258,9 +259,9 @@ export function mugshotHtml(c: Character, capture: number, fill = false): string
       ${hand(18)}${hand(192)}
     </g>
     <g font-family="Impact, 'Arial Narrow Bold', sans-serif" fill="#f4f4f4" text-anchor="middle">
-      <text x="120" y="233" font-size="8" textLength="128" lengthAdjust="spacingAndGlyphs">DEPTO. DE POLICÍA · ROBO DE OFICINA</text>
+      <text x="120" y="233" font-size="8" textLength="128" lengthAdjust="spacingAndGlyphs">${t('DEPTO. DE POLICÍA · ROBO DE OFICINA')}</text>
       <text x="120" y="256" font-size="24" letter-spacing="2" textLength="${Math.min(120, c.name.length * 17)}" lengthAdjust="spacingAndGlyphs">${c.name.toUpperCase()}</text>
-      <text x="120" y="267" font-size="8" letter-spacing="2">CAPTURA N.º ${String(capture).padStart(3, '0')}</text>
+      <text x="120" y="267" font-size="8" letter-spacing="2">${t('CAPTURA N.º {n}', { n: String(capture).padStart(3, '0') })}</text>
     </g>
     <rect width="240" height="300" fill="url(#mug-flash)"/>
   </svg>`
@@ -280,6 +281,6 @@ export function posterHtml(): string {
     <div class="ink col-span-2 col-start-3 row-start-2 flex portrait:col-start-1 portrait:row-start-3 flex-col items-center justify-center bg-[#0f1838] text-center leading-none">
       <span class="text-[min(5.2vw,6.5vh)] text-yellow-300 italic">THREAT LEVEL:</span>
       <span class="text-[min(11vw,13vh)] text-emerald-400">THEFT</span>
-      <span class="mt-2 animate-pulse text-[min(2.6vw,3.2vh)] text-yellow-400">ENTER O TOCA PARA EMPEZAR</span>
+      <span class="mt-2 animate-pulse text-[min(2.6vw,3.2vh)] text-yellow-400">${t('ENTER O TOCA PARA EMPEZAR')}</span>
     </div>`
 }

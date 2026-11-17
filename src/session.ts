@@ -81,3 +81,13 @@ export function report(event: Event, onDone: (progress: Progress) => void, onFai
     }
   })
 }
+
+/** Apunta un correo en la lista de espera de los art toys. */
+export async function joinWaitlist(email: string, lang: string): Promise<void> {
+  const res = await fetch('/api/waitlist', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, lang }),
+  })
+  if (!res.ok) throw new PlayError(res.status, `Error ${res.status}`)
+}

@@ -5,9 +5,10 @@ import {
   levelConfig, type Character, type LevelConfig,
 } from './data.ts'
 import { buildFigure, setMask, swingLimbs } from './figure.ts'
+import { lang, setLang, t } from './i18n.ts'
 import { COUNTS, DEMO_COUNTS, LEVELS } from './levels.ts'
 import { FRESH, MAX_STARS, caught, steal, type Progress } from './progress.ts'
-import { PlayError, close, idle, open, register, report, type Account } from './session.ts'
+import { PlayError, close, idle, joinWaitlist, open, register, report, type Account } from './session.ts'
 import { mugshotHtml, posterHtml } from './poster.ts'
 import { claimNick, cleanNick, fetchBoard, isTaken, loadNick, saveNick, submitScore } from './scores.ts'
 import { canSee, rayDistance, resolveCircle, turnToward, type Box, type Pt } from './logic.ts'
@@ -389,7 +390,7 @@ ui.innerHTML = `
     <div class="ink absolute top-3 right-3 flex flex-col items-end md:top-4 md:right-4">
       <div id="stars" class="text-xl text-yellow-400 md:text-3xl"></div>
       <div id="timer" class="text-4xl md:text-6xl"></div>
-      <button id="menuBtn" class="pointer-events-auto cursor-pointer rounded border-2 border-black bg-neutral-800/80 px-3 py-1 text-sm">MENÚ</button>
+      <button id="menuBtn" class="pointer-events-auto cursor-pointer rounded border-2 border-black bg-neutral-800/80 px-3 py-1 text-sm">${t('MENÚ')}</button>
     </div>
     <canvas id="radar" width="192" height="90" class="absolute bottom-16 left-10 rotate-45 rounded border-2 border-black bg-black/60 pointer-coarse:top-24 pointer-coarse:bottom-auto pointer-coarse:left-0 pointer-coarse:scale-50"></canvas>
     <div id="abilityBox" class="ink pointer-events-auto absolute right-4 bottom-4 cursor-pointer touch-none text-right pointer-coarse:bottom-36">
@@ -404,7 +405,7 @@ ui.innerHTML = `
       <div id="stick" class="pointer-events-auto absolute bottom-6 left-6 flex size-32 touch-none items-center justify-center rounded-full border-4 border-white/50 bg-black/30">
         <div id="knob" class="size-14 rounded-full bg-white/70"></div>
       </div>
-      <button id="grabBtn" class="ink pointer-events-auto absolute right-6 bottom-6 size-24 touch-none rounded-full border-4 border-black bg-yellow-400/90 text-xl">ROBAR</button>
+      <button id="grabBtn" class="ink pointer-events-auto absolute right-6 bottom-6 size-24 touch-none rounded-full border-4 border-black bg-yellow-400/90 text-xl">${t('ROBAR')}</button>
     </div>
   </div>
   <div id="notice" class="ink absolute top-24 left-1/2 z-20 hidden w-max max-w-[90vw] -translate-x-1/2 rounded-lg border-2 border-black bg-black/85 px-4 py-2 text-center text-lg text-red-400 md:text-2xl"></div>
@@ -413,27 +414,43 @@ ui.innerHTML = `
     <div id="bannerTitle" class="text-8xl"></div>
     <div id="bannerText" class="text-xl md:text-3xl"></div>
     <div id="bannerRank" class="text-xl text-emerald-400 md:text-2xl"></div>
-    <button id="shareBtn" class="hidden cursor-pointer rounded-lg border-2 border-black bg-emerald-500 px-5 py-2 text-xl">COMPARTIR</button>
+    <button id="shareBtn" class="hidden cursor-pointer rounded-lg border-2 border-black bg-emerald-500 px-5 py-2 text-xl">${t('COMPARTIR')}</button>
+    <button id="waitBannerBtn" class="hidden cursor-pointer rounded-lg border-2 border-black bg-pink-500 px-5 py-2 text-xl">${t('🔔 QUIERO MI ART TOY')}</button>
     <div id="bannerHint" class="text-base text-neutral-300 md:text-xl"></div>
   </div>
+  <dialog id="waitlist" class="pointer-events-auto m-auto w-full max-w-sm rounded-xl border-2 border-pink-400 bg-neutral-900 p-5 text-white backdrop:bg-black/70">
+    <p class="font-gta mb-1 text-3xl text-pink-400">${t('LISTA DE ESPERA')}</p>
+    <p class="mb-3 font-sans text-sm text-neutral-300">${t('Cada art toy es la llave de una partida completa de 10 niveles. Déjanos tu correo y te avisamos cuando salgan.')}</p>
+    <form id="waitForm" class="flex flex-col gap-2 font-sans">
+      <input id="waitEmail" required type="email" maxlength="254" autocomplete="email" placeholder="${t('Tu correo')}" class="rounded-lg border-2 border-neutral-600 bg-neutral-800 px-3 py-2 text-base text-white select-text" />
+      <p id="waitStatus" class="min-h-5 text-sm text-neutral-300"></p>
+      <button id="waitSend" class="font-gta cursor-pointer rounded bg-pink-500 px-4 py-2 text-xl text-white disabled:opacity-50">${t('AVÍSENME')}</button>
+      <button id="waitClose" type="button" class="font-gta cursor-pointer rounded bg-neutral-700 px-4 py-1 text-lg text-white">${t('CERRAR')}</button>
+    </form>
+  </dialog>
   <div id="poster" class="pointer-events-auto absolute inset-0 z-10 grid cursor-pointer grid-cols-6 grid-rows-3 gap-1 bg-black p-1 md:gap-2 md:p-2 portrait:grid-cols-3 portrait:grid-rows-6">${posterHtml()}</div>
   <div id="menu" class="pointer-events-auto absolute inset-0 flex flex-col items-center gap-4 overflow-y-auto bg-black/75 p-3 md:p-6">
     <h1 class="ink text-center text-4xl text-yellow-300 md:text-7xl">THREAT LEVEL: <span class="text-emerald-400">THEFT</span></h1>
-    <p class="ink text-center text-base text-neutral-200 md:text-xl">Elige a tu ladrón. Roba sin que te vean mientras lo coges. Un minuto por nivel.</p>
+    <p class="ink text-center text-base text-neutral-200 md:text-xl">${t('Elige a tu ladrón. Roba sin que te vean mientras lo coges. Un minuto por nivel.')}</p>
     <p id="account" class="ink text-center text-lg text-emerald-400 md:text-2xl"></p>
+    <p id="challenge" class="ink hidden text-center text-lg text-pink-400 md:text-2xl"></p>
+    <div class="flex flex-wrap items-center justify-center gap-2">
+      <button id="waitBtn" class="ink cursor-pointer rounded-lg border-2 border-black bg-pink-500 px-4 py-2 text-lg">${t('🔔 QUIERO MI ART TOY')}</button>
+      <button id="langBtn" class="ink cursor-pointer rounded-lg border-2 border-black bg-neutral-700 px-4 py-2 text-lg">${lang === 'es' ? 'ENGLISH' : 'ESPAÑOL'}</button>
+    </div>
     <dialog id="signup" class="pointer-events-auto m-auto w-full max-w-sm rounded-xl border-2 border-yellow-300 bg-neutral-900 p-5 text-white backdrop:bg-black/70">
-      <p class="mb-1 text-3xl text-yellow-300">ART TOY NUEVO</p>
-      <p class="mb-3 font-sans text-sm text-neutral-300">Regístralo una sola vez. Después basta con acercarlo para seguir tu partida.</p>
+      <p class="mb-1 text-3xl text-yellow-300">${t('ART TOY NUEVO')}</p>
+      <p class="mb-3 font-sans text-sm text-neutral-300">${t('Regístralo una sola vez. Después basta con acercarlo para seguir tu partida.')}</p>
       <form id="signupForm" class="flex flex-col gap-2 font-sans">
-        <input id="signupName" required maxlength="24" autocomplete="name" placeholder="Tu nombre" class="rounded-lg border-2 border-neutral-600 bg-neutral-800 px-3 py-2 text-base text-white select-text" />
-        <input id="signupEmail" required type="email" maxlength="254" autocomplete="email" placeholder="Tu correo" class="rounded-lg border-2 border-neutral-600 bg-neutral-800 px-3 py-2 text-base text-white select-text" />
+        <input id="signupName" required maxlength="24" autocomplete="name" placeholder="${t('Tu nombre')}" class="rounded-lg border-2 border-neutral-600 bg-neutral-800 px-3 py-2 text-base text-white select-text" />
+        <input id="signupEmail" required type="email" maxlength="254" autocomplete="email" placeholder="${t('Tu correo')}" class="rounded-lg border-2 border-neutral-600 bg-neutral-800 px-3 py-2 text-base text-white select-text" />
         <p id="signupError" class="min-h-5 text-sm text-red-400"></p>
-        <button id="signupBtn" class="font-gta cursor-pointer rounded bg-yellow-300 px-4 py-2 text-xl text-black disabled:opacity-50">EMPEZAR A ROBAR</button>
+        <button id="signupBtn" class="font-gta cursor-pointer rounded bg-yellow-300 px-4 py-2 text-xl text-black disabled:opacity-50">${t('EMPEZAR A ROBAR')}</button>
       </form>
     </dialog>
     <div class="flex flex-wrap items-center justify-center gap-2">
-      <input id="nick" maxlength="12" autocomplete="nickname" placeholder="Tu apodo para el tablón" class="rounded-lg border-2 border-neutral-600 bg-neutral-900 px-3 py-2 font-sans text-base text-white select-text" />
-      <button id="boardBtn" class="ink cursor-pointer rounded-lg border-2 border-black bg-yellow-400 px-4 py-2 text-lg">🏆 TABLÓN</button>
+      <input id="nick" maxlength="12" autocomplete="nickname" placeholder="${t('Tu apodo para el tablón')}" class="rounded-lg border-2 border-neutral-600 bg-neutral-900 px-3 py-2 font-sans text-base text-white select-text" />
+      <button id="boardBtn" class="ink cursor-pointer rounded-lg border-2 border-black bg-yellow-400 px-4 py-2 text-lg">${t('🏆 TABLÓN')}</button>
     </div>
     <p id="nickStatus" class="min-h-5 font-sans text-sm text-neutral-300"></p>
     <dialog id="board" class="pointer-events-auto m-auto w-full max-w-sm rounded-xl border-2 border-yellow-300 bg-neutral-900 p-5 text-white backdrop:bg-black/70">
@@ -441,32 +458,32 @@ ui.innerHTML = `
       <ol id="boardList" class="space-y-1 font-sans text-base"></ol>
       <p id="boardMe" class="mt-3 text-lg text-emerald-400"></p>
       <form method="dialog" class="mt-4 text-right">
-        <button class="cursor-pointer rounded bg-yellow-300 px-4 py-1 text-lg text-black">CERRAR</button>
+        <button class="cursor-pointer rounded bg-yellow-300 px-4 py-1 text-lg text-black">${t('CERRAR')}</button>
       </form>
     </dialog>
-    <button id="installBtn" class="ink hidden cursor-pointer rounded-lg border-2 border-black bg-emerald-500 px-4 py-2 text-lg">＋ AÑADIR A PANTALLA DE INICIO</button>
+    <button id="installBtn" class="ink hidden cursor-pointer rounded-lg border-2 border-black bg-emerald-500 px-4 py-2 text-lg">${t('＋ AÑADIR A PANTALLA DE INICIO')}</button>
     <dialog id="installHelp" class="pointer-events-auto m-auto max-w-sm rounded-xl border-2 border-yellow-300 bg-neutral-900 p-5 font-sans text-white backdrop:bg-black/70">
-      <p class="font-gta mb-3 text-2xl text-yellow-300">Añadir a pantalla de inicio</p>
+      <p class="font-gta mb-3 text-2xl text-yellow-300">${t('Añadir a pantalla de inicio')}</p>
       <ol class="list-decimal space-y-2 pl-5 text-base">
-        <li>Toca el botón <b>Compartir</b> del navegador (cuadro con flecha hacia arriba).</li>
-        <li>Elige <b>Añadir a pantalla de inicio</b>.</li>
-        <li>Abre el juego desde el icono nuevo: pantalla completa y sin zoom.</li>
+        <li>${t('Toca el botón <b>Compartir</b> del navegador (cuadro con flecha hacia arriba).')}</li>
+        <li>${t('Elige <b>Añadir a pantalla de inicio</b>.')}</li>
+        <li>${t('Abre el juego desde el icono nuevo: pantalla completa y sin zoom.')}</li>
       </ol>
       <form method="dialog" class="mt-4 text-right">
-        <button class="font-gta cursor-pointer rounded bg-yellow-300 px-4 py-1 text-lg text-black">LISTO</button>
+        <button class="font-gta cursor-pointer rounded bg-yellow-300 px-4 py-1 text-lg text-black">${t('LISTO')}</button>
       </form>
     </dialog>
     <div id="roster" class="grid w-full max-w-6xl grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4"></div>
-    <p class="ink text-center text-base text-neutral-300 md:text-lg">${TOUCH ? 'Palanca: moverse · mantén ROBAR · toca la habilidad para usarla' : 'WASD / flechas: moverse · mantén E: robar · Q: habilidad · Esc: menú'}</p>
+    <p class="ink text-center text-base text-neutral-300 md:text-lg">${TOUCH ? t('Palanca: moverse · mantén ROBAR · toca la habilidad para usarla') : t('WASD / flechas: moverse · mantén E: robar · Q: habilidad · Esc: menú')}</p>
     <footer class="mt-4 flex w-full max-w-6xl flex-col items-center gap-3 border-t-2 border-neutral-700 pt-5 pb-6 text-center font-sans text-sm text-neutral-400">
       <a href="https://www.instagram.com/mrmonomalo/" target="_blank" rel="noopener noreferrer" class="flex items-center gap-2 rounded-full border-2 border-black bg-linear-to-r from-fuchsia-600 via-rose-500 to-amber-400 px-4 py-2 text-base font-bold text-white hover:brightness-110">
         <svg viewBox="0 0 24 24" class="size-5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor"/></svg>
-        Creado por @mrmonomalo
+        ${t('Creado por @mrmonomalo')}
       </a>
-      <p>Un juego y una colección de art toys. Sígueme en Instagram para ver los próximos personajes.</p>
+      <p>${t('Un juego y una colección de art toys. Sígueme en Instagram para ver los próximos personajes.')}</p>
       <p class="text-xs text-neutral-500">
-        Código abierto en <a href="https://github.com/hugotorreslinares/the-office-theft" target="_blank" rel="noopener noreferrer" class="text-sky-300 underline hover:text-sky-200">GitHub</a>
-        · Proyecto de fans sin ánimo de lucro, no afiliado a la serie ni a sus dueños.
+        ${t('Código abierto en')} <a href="https://github.com/hugotorreslinares/the-office-theft" target="_blank" rel="noopener noreferrer" class="text-sky-300 underline hover:text-sky-200">GitHub</a>
+        · ${t('Proyecto de fans sin ánimo de lucro, no afiliado a la serie ni a sus dueños.')}
       </p>
     </footer>
   </div>`
@@ -475,6 +492,16 @@ const dom = {
   hud: el<HTMLDivElement>('#hud'),
   menu: el<HTMLDivElement>('#menu'),
   account: el<HTMLParagraphElement>('#account'),
+  challenge: el<HTMLParagraphElement>('#challenge'),
+  waitBtn: el<HTMLButtonElement>('#waitBtn'),
+  waitBannerBtn: el<HTMLButtonElement>('#waitBannerBtn'),
+  waitlist: el<HTMLDialogElement>('#waitlist'),
+  waitForm: el<HTMLFormElement>('#waitForm'),
+  waitEmail: el<HTMLInputElement>('#waitEmail'),
+  waitStatus: el<HTMLParagraphElement>('#waitStatus'),
+  waitSend: el<HTMLButtonElement>('#waitSend'),
+  waitClose: el<HTMLButtonElement>('#waitClose'),
+  langBtn: el<HTMLButtonElement>('#langBtn'),
   notice: el<HTMLDivElement>('#notice'),
   signup: el<HTMLDialogElement>('#signup'),
   signupForm: el<HTMLFormElement>('#signupForm'),
@@ -529,8 +556,11 @@ const finished = (): boolean => progress.level > counts.length
 function renderMenu(): void {
   // textContent: el nombre lo escribió el jugador.
   dom.account.textContent = account
-    ? `${account.name} · ${finished() ? 'OFICINA VACÍA' : `NIVEL ${progress.level}`} · ${starsText()}`
-    : 'DEMO: solo el nivel 1. Acerca tu art toy para jugar los 10 niveles.'
+    ? `${account.name} · ${finished() ? t('OFICINA VACÍA') : t('NIVEL {n}', { n: progress.level })} · ${starsText()}`
+    : t('DEMO: solo el nivel 1. Acerca tu art toy para jugar los 10 niveles.')
+  // Con art toy sobran la lista de espera y el cambio de idioma (recargar cerraría la sesión).
+  dom.waitBtn.classList.toggle('hidden', account !== undefined)
+  dom.langBtn.classList.toggle('hidden', account !== undefined)
   const own = account ? CHARACTERS.find((c) => c.id === progress.char) : undefined
   // Datos estáticos propios: no hay entrada de usuario en este HTML.
   dom.roster.innerHTML = (own ? [own] : CHARACTERS).map((c) => `
@@ -538,8 +568,8 @@ function renderMenu(): void {
     <img src="${portraits.get(c.id) ?? ''}" alt="${c.name}" class="size-16 shrink-0 md:size-20" />
     <span class="flex flex-col">
       <span class="text-2xl text-yellow-300">${c.name}</span>
-      <span class="text-base text-sky-300">${c.ability.name}</span>
-      <span class="font-sans text-xs text-neutral-300">${c.ability.text}</span>
+      <span class="text-base text-sky-300">${t(c.ability.name)}</span>
+      <span class="font-sans text-xs text-neutral-300">${t(c.ability.text)}</span>
     </span>
   </button>`).join('')
 }
@@ -599,7 +629,7 @@ function onSaved(saved: Progress): void {
 function onSaveFailed(err: unknown): void {
   if (!(err instanceof PlayError && err.status === 401)) {
     console.error(err)
-    return notify('Sin conexión: este progreso no se guardó')
+    return notify(t('Sin conexión: este progreso no se guardó'))
   }
   // Otra pestaña hizo tap, o la sesión caducó: esta ya no puede seguir.
   close()
@@ -608,7 +638,7 @@ function onSaveFailed(err: unknown): void {
   counts = DEMO_COUNTS
   progress = FRESH
   showMenu()
-  notify('Sesión terminada. Acerca tu art toy para continuar.')
+  notify(t('Sesión terminada. Acerca tu art toy para continuar.'))
 }
 
 function signIn(next: Account): void {
@@ -627,17 +657,17 @@ let connecting = tagCode !== undefined
 
 if (tagCode) {
   dom.poster.classList.add('hidden')
-  dom.account.textContent = 'Conectando tu art toy…'
+  dom.account.textContent = t('Conectando tu art toy…')
   open(tagCode).then((found) => {
     if (found) signIn(found)
     else {
-      dom.account.textContent = 'Art toy nuevo: regístralo para empezar'
+      dom.account.textContent = t('Art toy nuevo: regístralo para empezar')
       dom.signup.showModal()
     }
   }).catch((err: unknown) => {
     console.error(err)
     renderMenu()
-    notify(err instanceof PlayError && err.status === 404 ? 'Etiqueta no reconocida: juegas la demo' : 'No se pudo conectar: juegas la demo')
+    notify(err instanceof PlayError && err.status === 404 ? t('Etiqueta no reconocida: juegas la demo') : t('No se pudo conectar: juegas la demo'))
   }).finally(() => { connecting = false })
 
   dom.signupForm.addEventListener('submit', (e) => {
@@ -649,7 +679,7 @@ if (tagCode) {
       signIn(created)
     }).catch((err: unknown) => {
       console.error(err)
-      dom.signupError.textContent = err instanceof PlayError ? err.message : 'No se pudo registrar'
+      dom.signupError.textContent = err instanceof PlayError && err.status === 400 ? t('Revisa tu nombre y tu correo') : t('No se pudo registrar')
     }).finally(() => { dom.signupBtn.disabled = false })
   })
   dom.signup.addEventListener('close', renderMenu)
@@ -682,6 +712,8 @@ dom.installBtn.addEventListener('click', () => {
 
 /** Mayor nivel superado en esta sesión y último puesto que devolvió el servidor. */
 let bestLevel = 0
+/** Segundos que sobraron al superar `bestLevel`: van en el enlace de reto. */
+let bestSeconds = 0
 let rank: number | undefined
 
 dom.nick.value = loadNick()
@@ -696,15 +728,15 @@ function reserveNick(): void {
   const typed = dom.nick.value
   if (typed.trim() === '') return setNickStatus('', 'text-neutral-300')
   const name = cleanNick(typed)
-  if (!name) return setNickStatus('Usa 1 a 12 letras, números, espacios, - o _', 'text-red-400')
-  setNickStatus('Comprobando…', 'text-neutral-300')
+  if (!name) return setNickStatus(t('Usa 1 a 12 letras, números, espacios, - o _'), 'text-red-400')
+  setNickStatus(t('Comprobando…'), 'text-neutral-300')
   claimNick(name).then(() => {
-    if (dom.nick.value === typed) setNickStatus('✓ Apodo reservado para ti', 'text-emerald-400')
+    if (dom.nick.value === typed) setNickStatus(t('✓ Apodo reservado para ti'), 'text-emerald-400')
   }).catch((err: unknown) => {
     if (dom.nick.value !== typed) return
-    if (isTaken(err)) return setNickStatus('✗ Ese apodo ya es de otro jugador. Elige otro.', 'text-red-400')
+    if (isTaken(err)) return setNickStatus(t('✗ Ese apodo ya es de otro jugador. Elige otro.'), 'text-red-400')
     console.error(err)
-    setNickStatus('No se pudo comprobar el apodo', 'text-neutral-300')
+    setNickStatus(t('No se pudo comprobar el apodo'), 'text-neutral-300')
   })
 }
 
@@ -719,59 +751,143 @@ reserveNick()
 dom.boardBtn.addEventListener('click', () => {
   const nick = cleanNick(dom.nick.value)
   dom.boardList.replaceChildren()
-  dom.boardMe.textContent = 'Cargando…'
+  dom.boardMe.textContent = t('Cargando…')
   dom.board.showModal()
   fetchBoard(nick).then(({ top, me }) => {
     // textContent: los apodos vienen de otros jugadores.
     dom.boardList.replaceChildren(...top.map((row, i) => {
       const li = document.createElement('li')
-      li.textContent = `${i + 1}. ${row.name} — nivel ${row.level}`
+      li.textContent = t('{i}. {name} — nivel {level}', { i: i + 1, name: row.name, level: row.level })
       return li
     }))
-    dom.boardMe.textContent = me ? `Tú (${me.name}): puesto #${me.rank}, nivel ${me.level}`
-      : top.length === 0 ? 'Nadie todavía. ¡Sé el primero!' : ''
+    dom.boardMe.textContent = me ? t('Tú ({name}): puesto #{rank}, nivel {level}', { name: me.name, rank: me.rank, level: me.level })
+      : top.length === 0 ? t('Nadie todavía. ¡Sé el primero!') : ''
   }).catch((err: unknown) => {
     console.error(err)
-    dom.boardMe.textContent = 'Tablón no disponible ahora'
+    dom.boardMe.textContent = t('Tablón no disponible ahora')
   })
 })
 
 function reportWin(): void {
   const name = cleanNick(dom.nick.value)
   if (!name) {
-    dom.bannerRank.textContent = 'Pon un apodo en el menú para entrar al tablón'
+    dom.bannerRank.textContent = t('Pon un apodo en el menú para entrar al tablón')
     return
   }
   submitScore({ name, level, seconds: Math.min(99, Math.max(0, Math.ceil(timeLeft))) }).then((place) => {
     rank = place
-    if (place) dom.bannerRank.textContent = `Puesto #${place} en el tablón`
+    if (place) dom.bannerRank.textContent = t('Puesto #{place} en el tablón', { place })
   }).catch((err: unknown) => {
     if (isTaken(err)) {
-      dom.bannerRank.textContent = 'Tu apodo es de otro jugador: cámbialo en el menú'
+      dom.bannerRank.textContent = t('Tu apodo es de otro jugador: cámbialo en el menú')
       return
     }
     console.error(err)
-    dom.bannerRank.textContent = 'Tablón no disponible ahora'
+    dom.bannerRank.textContent = t('Tablón no disponible ahora')
   })
+}
+
+const thingsOf = (n: number): string => t(LEVELS[n - 1]?.plural ?? '')
+
+/** Reto recibido por enlace (?reto=nivel.segundos): superar ese nivel con más tiempo de sobra. */
+const challenge = ((): { readonly level: number; readonly seconds: number } | undefined => {
+  const found = /^(\d{1,2})\.(\d{1,2})$/.exec(new URLSearchParams(location.search).get('reto') ?? '')
+  return found ? { level: Number(found[1]), seconds: Number(found[2]) } : undefined
+})()
+if (challenge) {
+  dom.challenge.textContent = t('RETO: supera el nivel {level} con más de {s} s de sobra', { level: challenge.level, s: challenge.seconds })
+  dom.challenge.classList.remove('hidden')
+}
+
+/** Tarjeta para compartir: la foto de fichaje con el nombre del juego y su dirección debajo. */
+async function mugshotCard(svg: string): Promise<Blob> {
+  const photo = new Image()
+  // Como imagen suelta el SVG necesita su espacio de nombres y un tamaño propio.
+  photo.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg.replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" width="720" height="900" '))}`
+  await photo.decode()
+  const card = document.createElement('canvas')
+  card.width = 720
+  card.height = 1040
+  const ctx = card.getContext('2d')
+  if (!ctx) throw new Error('Sin contexto 2D para la tarjeta')
+  ctx.fillStyle = '#0f1838'
+  ctx.fillRect(0, 0, card.width, card.height)
+  ctx.drawImage(photo, 0, 0, 720, 900)
+  ctx.textAlign = 'center'
+  ctx.font = '58px Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif'
+  ctx.fillStyle = '#fde047'
+  ctx.fillText('THREAT LEVEL: THEFT', 360, 966)
+  ctx.font = '30px Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif'
+  ctx.fillStyle = '#34d399'
+  ctx.fillText(`${t('¿ME SUPERAS?')}  ${location.host}`, 360, 1012)
+  return new Promise((resolve, reject) => {
+    card.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('No se pudo crear la imagen'))), 'image/png')
+  })
+}
+
+/** Tarjeta de la última captura, lista antes del clic: compartir archivos exige ir pegado al gesto. */
+let shot: Promise<Blob> | undefined
+
+async function share(): Promise<void> {
+  if (shot) {
+    const text = `${t('Me ficharon robando {things} en Threat Level: Theft. ¿Duras más que yo?', { things: thingsOf(level) })} ${location.origin}`
+    const file = new File([await shot], 'threat-level-theft.png', { type: 'image/png' })
+    if (navigator.canShare?.({ files: [file] })) return navigator.share({ files: [file], text })
+    // Sin hoja de compartir con archivos (escritorio): se descarga la imagen y se copia el texto.
+    const link = document.createElement('a')
+    link.href = URL.createObjectURL(file)
+    link.download = file.name
+    link.click()
+    URL.revokeObjectURL(link.href)
+    dom.shareBtn.textContent = t('¡IMAGEN GUARDADA!')
+    return navigator.clipboard.writeText(text)
+  }
+  const text = rank
+    ? t('Llegué al nivel {level} y voy #{rank} en Threat Level: Theft. ¿Me superas?', { level: bestLevel, rank })
+    : t('Llegué al nivel {level} en Threat Level: Theft. ¿Me superas?', { level: bestLevel })
+  const url = `${location.origin}/?reto=${bestLevel}.${bestSeconds}`
+  if (navigator.share) return navigator.share({ text, url })
+  await navigator.clipboard.writeText(`${text} ${url}`)
+  dom.shareBtn.textContent = t('¡COPIADO!')
 }
 
 dom.shareBtn.addEventListener('click', (e) => {
   e.stopPropagation() // el cartel entero avanza de nivel al tocarlo
-  const text = `Llegué al nivel ${bestLevel}${rank ? ` y voy #${rank}` : ''} en Threat Level: Theft. ¿Me superas?`
-  const url = location.origin
-  const done = navigator.share
-    ? navigator.share({ text, url })
-    : navigator.clipboard.writeText(`${text} ${url}`).then(() => { dom.shareBtn.textContent = '¡COPIADO!' })
-  done.catch((err: unknown) => {
+  share().catch((err: unknown) => {
     if (!(err instanceof DOMException && err.name === 'AbortError')) console.error('No se pudo compartir', err)
   })
 })
 
+// ---------- Lista de espera e idioma ----------
+
+function openWaitlist(e: Event): void {
+  e.stopPropagation()
+  dom.waitlist.showModal()
+}
+dom.waitBtn.addEventListener('click', openWaitlist)
+dom.waitBannerBtn.addEventListener('click', openWaitlist)
+dom.waitClose.addEventListener('click', () => dom.waitlist.close())
+dom.waitForm.addEventListener('submit', (e) => {
+  e.preventDefault()
+  dom.waitSend.disabled = true
+  joinWaitlist(dom.waitEmail.value, lang).then(() => {
+    dom.waitStatus.textContent = t('✓ Listo. Te avisaremos cuando salgan.')
+  }).catch((err: unknown) => {
+    console.error(err)
+    dom.waitSend.disabled = false
+    dom.waitStatus.textContent = err instanceof PlayError && err.status === 400 ? t('Revisa tu correo') : t('No se pudo guardar. Inténtalo de nuevo.')
+  })
+})
+dom.langBtn.addEventListener('click', () => setLang(lang === 'es' ? 'en' : 'es'))
+document.documentElement.lang = lang
+
 function showBanner(title: string, color: string, text: string, hint: string): void {
   setStealing(false)
+  shot = undefined
   dom.mugshot.classList.add('hidden')
+  dom.waitBannerBtn.classList.add('hidden')
   dom.bannerRank.textContent = ''
-  dom.shareBtn.textContent = 'COMPARTIR'
+  dom.shareBtn.textContent = t('COMPARTIR')
   dom.shareBtn.classList.toggle('hidden', bestLevel === 0)
   dom.bannerTitle.textContent = title
   dom.bannerTitle.className = `text-5xl md:text-8xl ${color}`
@@ -828,9 +944,9 @@ function startLevel(): void {
   total = counts[level - 1] ?? 0
   report({ action: 'start', char: player.char.id }, onSaved, onSaveFailed)
 
-  dom.mission.textContent = `NIVEL ${level} · ROBA ${total} ${(LEVELS[level - 1]?.plural ?? '').toUpperCase()}`
+  dom.mission.textContent = t('NIVEL {n} · ROBA {total} {things}', { n: level, total, things: thingsOf(level).toUpperCase() })
   dom.stars.textContent = starsText()
-  dom.abilityName.textContent = player.char.ability.name
+  dom.abilityName.textContent = t(player.char.ability.name)
   dom.menu.classList.add('hidden')
   dom.banner.classList.replace('flex', 'hidden')
   dom.hud.classList.remove('hidden')
@@ -848,29 +964,43 @@ function bust(reason: string, captured: boolean): void {
     progress = caught(progress)
     report({ action: 'caught' }, onSaved, onSaveFailed)
     if (progress.stars === 0) {
-      text = `${reason} Te atraparon ${MAX_STARS} veces: ${from > 1 ? `pierdes un nivel y vuelves al ${progress.level}` : 'tus robos del nivel 1 vuelven a su sitio'}.`
+      text = from > 1
+        ? t('{reason} Te atraparon {max} veces: pierdes un nivel y vuelves al {level}.', { reason, max: MAX_STARS, level: progress.level })
+        : t('{reason} Te atraparon {max} veces: tus robos del nivel 1 vuelven a su sitio.', { reason, max: MAX_STARS })
       syncObjects()
     } else {
-      text = `${reason} Capturas: ${starsText()}`
+      text = t('{reason} Capturas: {stars}', { reason, stars: starsText() })
     }
     dom.stars.textContent = starsText()
   }
-  showBanner('BUSTED', 'text-red-500', text, TOUCH ? 'Toca para reintentar' : 'ENTER: reintentar · ESC: cambiar de personaje')
+  showBanner('BUSTED', 'text-red-500', text, TOUCH ? t('Toca para reintentar') : t('ENTER: reintentar · ESC: cambiar de personaje'))
   if (!captured) return
   // Datos estáticos propios y un número: no hay entrada de usuario en este HTML.
-  dom.mugshot.innerHTML = mugshotHtml(player.char, progress.captures)
+  const photo = mugshotHtml(player.char, progress.captures)
+  dom.mugshot.innerHTML = photo
   dom.mugshot.classList.remove('hidden')
+  shot = mugshotCard(photo)
+  shot.catch((err: unknown) => console.error('No se pudo preparar la tarjeta', err))
+  dom.shareBtn.classList.remove('hidden')
 }
 
 function win(): void {
   phase = 'won'
   sfx.win()
-  bestLevel = Math.max(bestLevel, level)
-  const more = TOUCH ? 'Toca para seguir' : 'ENTER: siguiente nivel'
-  const back = TOUCH ? 'Toca para volver al menú' : 'ENTER: volver al menú'
-  if (!finished()) showBanner('MISSION PASSED!', 'text-yellow-300', `Nivel ${level} superado con ${Math.ceil(timeLeft)} s de sobra`, more)
-  else if (account) showBanner('¡OFICINA VACÍA!', 'text-yellow-300', 'Te lo robaste todo. No queda nada.', back)
-  else showBanner('DEMO SUPERADA', 'text-yellow-300', 'Acerca tu art toy para jugar los 10 niveles y guardar tu partida.', back)
+  const spare = Math.ceil(timeLeft)
+  if (level >= bestLevel) {
+    bestLevel = level
+    bestSeconds = Math.min(99, Math.max(0, spare))
+  }
+  const more = TOUCH ? t('Toca para seguir') : t('ENTER: siguiente nivel')
+  const back = TOUCH ? t('Toca para volver al menú') : t('ENTER: volver al menú')
+  if (!finished()) showBanner('MISSION PASSED!', 'text-yellow-300', t('Nivel {level} superado con {s} s de sobra', { level, s: spare }), more)
+  else if (account) showBanner(t('¡OFICINA VACÍA!'), 'text-yellow-300', t('Te lo robaste todo. No queda nada.'), back)
+  else {
+    showBanner(t('DEMO SUPERADA'), 'text-yellow-300', t('Acerca tu art toy para jugar los 10 niveles y guardar tu partida.'), back)
+    dom.waitBannerBtn.classList.remove('hidden')
+  }
+  if (challenge && (level > challenge.level || (level === challenge.level && spare > challenge.seconds))) dom.bannerTitle.textContent = t('¡Reto superado!')
   reportWin()
 }
 
@@ -967,7 +1097,7 @@ dom.abilityBox.addEventListener('click', () => useAbility())
 dom.menuBtn.addEventListener('click', () => showMenu())
 dom.banner.addEventListener('click', confirm)
 addEventListener('keydown', (e) => {
-  if (e.target instanceof HTMLInputElement) return // escribiendo el apodo
+  if (e.target instanceof HTMLInputElement || dom.waitlist.open) return // escribiendo, o con la lista de espera abierta
   keys.add(e.code)
   if (e.repeat) return
   if (e.code === 'KeyQ') useAbility()
@@ -1105,7 +1235,7 @@ function update(dt: number): void {
   }
 
   grab = grabbing ? grab + dt / (BASE_GRAB * (player.char.grabTime ?? 1)) : 0
-  if (caughtBy) return bust(`¡${caughtBy.char.name} te vio robando!`, true)
+  if (caughtBy) return bust(t('¡{name} te vio robando!', { name: caughtBy.char.name }), true)
   if (target && grab >= 1) {
     const next = steal(progress, target.index, counts)
     if (!next) throw new Error(`Robo inválido: nivel ${progress.level}, objeto ${target.index}`)
@@ -1119,9 +1249,9 @@ function update(dt: number): void {
     sfx.pick()
     if (passed) return win()
   }
-  if (timeLeft <= 0) return bust('Se acabó el tiempo', false)
+  if (timeLeft <= 0) return bust(t('Se acabó el tiempo'), false)
 
-  dom.prompt.textContent = target ? (TOUCH ? 'MANTÉN ROBAR' : 'MANTÉN E PARA ROBAR') : ''
+  dom.prompt.textContent = target ? (TOUCH ? t('MANTÉN ROBAR') : t('MANTÉN E PARA ROBAR')) : ''
   dom.grab.value = Math.min(grab, 1)
   dom.grab.classList.toggle('invisible', !grabbing)
 }
@@ -1132,7 +1262,7 @@ function drawHud(): void {
   dom.timer.textContent = `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`
   dom.timer.classList.toggle('text-red-500', timeLeft <= 10)
   const { effect } = player.char.ability
-  dom.abilityState.textContent = !effect ? 'PASIVA' : cooldown > 99 ? 'USADA' : cooldown > 0 ? `${Math.ceil(cooldown)} s` : TOUCH ? 'TOCA · LISTA' : 'Q · LISTA'
+  dom.abilityState.textContent = !effect ? t('PASIVA') : cooldown > 99 ? t('USADA') : cooldown > 0 ? `${Math.ceil(cooldown)} s` : TOUCH ? t('TOCA · LISTA') : t('Q · LISTA')
 
   const k = dom.radar.width / MAP.w
   radar.clearRect(0, 0, dom.radar.width, dom.radar.height)

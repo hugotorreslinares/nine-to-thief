@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict'
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { decode, encode, parseClaim, parseEntry } from '../api/scores.ts'
 import { POST } from '../api/play.ts'
+import { POST as joinWaitlist } from '../api/waitlist.ts'
+import { EN } from './i18n.ts'
 import { CHAIRS, CHARACTERS, FURNITURE, MAP, OBJECTS, ROUTES, SPAWN, WALLS } from './data.ts'
-import { COUNTS } from './levels.ts'
+import { COUNTS, LEVELS } from './levels.ts'
 import { FRESH, MAX_STARS, caught, steal, type Progress } from './progress.ts'
 import { box, canSee, rayDistance, resolveCircle, turnToward } from './logic.ts'
 
@@ -90,6 +92,7 @@ function fakeRedis([cmd, key = '', ...args]: readonly string[]): unknown {
     case 'SET': return strings.has(key) ? null : (strings.set(key, args[0] ?? ''), 'OK') // siempre NX
     case 'DEL': return Number(hashes.delete(key))
     case 'HSET': for (let i = 0; i + 1 < args.length; i += 2) hashOf(key).set(args[i] ?? '', args[i + 1] ?? ''); return 1
+    case 'HSETNX': return hashOf(key).has(args[0] ?? '') ? 0 : (hashOf(key).set(args[0] ?? '', args[1] ?? ''), 1)
     case 'HDEL': return Number(hashOf(key).delete(args[0] ?? ''))
     case 'HMGET': return args.map((field) => hashOf(key).get(field) ?? null)
     default: throw new Error(`Redis falso: falta ${cmd}`)
@@ -134,5 +137,21 @@ if (existsSync(csv)) {
 } else {
   console.warn('Sin nfc-tags.csv: se omiten las pruebas de partidas')
 }
+
+// ---------- Lista de espera ----------
+
+const wait = (email: unknown): Promise<Response> => joinWaitlist(new Request('http://x/api/waitlist', { method: 'POST', body: JSON.stringify({ email, lang: 'en' }) }))
+assert.equal((await wait('no-es-correo')).status, 400, 'la lista de espera valida el correo')
+assert.equal((await wait(' Fan@Example.com ')).status, 200, 'apunta un correo')
+assert.ok(hashOf('waitlist').has('fan@example.com'), 'lo guarda normalizado')
+
+// ---------- Traducciones ----------
+
+const used = new Set<string>([...LEVELS.map((kind) => kind.plural), ...CHARACTERS.flatMap((c) => [c.ability.name, c.ability.text])])
+const srcDir = new URL('.', import.meta.url)
+for (const file of readdirSync(srcDir).filter((name) => name.endsWith('.ts'))) {
+  for (const found of readFileSync(new URL(file, srcDir), 'utf8').matchAll(/\bt\('([^']+)'/g)) used.add(found[1] ?? '')
+}
+for (const text of used) assert.ok(text in EN, `falta la traducción al inglés de: ${text}`)
 
 console.log('logic ok')

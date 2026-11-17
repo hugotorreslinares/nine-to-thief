@@ -45,6 +45,14 @@ node scripts/tags.ts 20
 
 Emite códigos nuevos: las URLs van a `nfc-tags.csv` (privado, fuera de git; cada URL es una credencial) y sus hashes a `api/_tags.ts`, que hay que versionar y desplegar. Graba cada URL en una etiqueta NTAG213/215 como registro NDEF de tipo URL.
 
+Quien termina la demo puede apuntarse a la lista de espera (`api/waitlist.ts`). Para verla:
+
+```bash
+node --env-file=.env.local scripts/waitlist.ts
+```
+
+El juego está en español e inglés (`src/i18n.ts`): el español es el texto fuente y `npm test` falla si falta una traducción.
+
 Niveles y objetos se configuran en `src/levels.ts`; las reglas de capturas y progreso están en `src/progress.ts`.
 
 Proyecto de fans sin ánimo de lucro, no afiliado a la serie ni a sus propietarios.
