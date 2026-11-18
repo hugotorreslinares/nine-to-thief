@@ -45,7 +45,7 @@ function loadCloseUp(): boolean {
 const pick = (touch: string, tv: string, keyboard: string): string => t(TOUCH ? touch : TV ? tv : keyboard)
 /** Leyenda de controles durante la partida: teclas en cajitas y lo que hace cada una. Solo textos propios. */
 function legendHtml(): string {
-  const key = (k: string): string => `<kbd class="rounded bg-white px-1.5 font-sans font-bold text-black">${k}</kbd>`
+  const key = (k: string): string => `<kbd class="rounded bg-white px-1.5 font-sans font-bold tracking-normal text-black [text-shadow:none]">${k}</kbd>`
   const item = (keys: string, what: string): string => `<span class="flex items-center gap-1">${keys} <span>${what}</span></span>`
   if (TV) {
     return [
