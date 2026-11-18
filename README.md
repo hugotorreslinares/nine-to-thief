@@ -9,7 +9,7 @@ Funciona en el navegador de escritorio y en el celular (también puedes añadirl
 ## Cómo se juega
 
 1. **Elige un personaje.** Hay 16: **Nine**, el protagonista (el del art toy), y 15 oficinistas originales. Cada uno tiene una habilidad propia: puedes distraer a los demás, correr más rápido, pasar inadvertido o robar más deprisa, entre otras ventajas.
-2. **Busca los objetos marcados en amarillo.** La lista cambia entre niveles y los objetos aparecen en distintos lugares de la oficina.
+2. **Busca los objetos marcados en amarillo.** La lista cambia entre niveles y, cada vez que empiezas una partida, los objetos aparecen en otros escritorios y rincones de la oficina (siguen siendo los mismos objetos y el mismo número por nivel, así que tu progreso no se ve afectado).
 3. **Acércate y mantén el botón de robar** hasta recoger cada objeto. Mientras robas no puedes moverte: si alguien te ve haciéndolo, suena la alarma y pierdes el nivel.
 4. **Escapa de las miradas y vigila el radar.** Muestra dónde estás tú, dónde están los demás y dónde quedan objetos por recoger. Cuando un vigilante te tiene en su cono de visión, te sale una gotita de sudor sobre la cabeza.
 5. **Supera el nivel antes de que se acabe el tiempo** para pasar al siguiente. La dificultad aumenta: hay más objetos y más compañeros patrullando.

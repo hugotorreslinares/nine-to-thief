@@ -34,8 +34,13 @@ const MASKS = new WeakMap<THREE.Group, THREE.Group>()
 const BAND = new THREE.TorusGeometry(0.41, 0.075, LITE ? 4 : 8, LITE ? 12 : 24).rotateX(Math.PI / 2)
 const MASK = 0x16161a
 
-/** Figuras hechas con un modelo 3D (una sola malla, sin extremidades): el grupo que se inclina al caminar. */
-const MODELS = new WeakMap<THREE.Group, THREE.Group>()
+/** Figuras hechas con un modelo 3D: cuerpo de una pieza y, si las trae, dos piernas que se balancean al caminar. */
+interface ModelRig {
+  readonly lean: THREE.Group
+  /** Piernas del modelo (pivote en la cadera); vacío si el modelo no las trae separadas. */
+  readonly legs: readonly THREE.Object3D[]
+}
+const MODELS = new WeakMap<THREE.Group, ModelRig>()
 
 /**
  * Carga un modelo GLB como figura: mira a +x como las demás y mide `height` metros.
@@ -58,7 +63,8 @@ export async function loadModelFigure(url: string, height: number): Promise<THRE
     facing.add(gltf.scene)
     lean.add(facing)
     g.add(lean)
-    MODELS.set(g, lean)
+    const legs = ['leg_l', 'leg_r'].flatMap((name) => gltf.scene.getObjectByName(name) ?? [])
+    MODELS.set(g, { lean, legs })
     return g
   } catch (err) {
     console.warn(`No se pudo cargar el modelo ${url}`, err)
@@ -76,10 +82,13 @@ export function setMask(fig: THREE.Group, on: boolean): void {
 
 /** Balancea piernas y brazos opuestos; ángulo 0 = quieto. */
 export function swingLimbs(fig: THREE.Group, angle: number): void {
-  // Un modelo de una pieza no mueve brazos ni piernas: se balancea de lado a lado como una figura de vinilo.
-  const lean = MODELS.get(fig)
-  if (lean) {
-    lean.rotation.x = angle * 0.18
+  // Un modelo mueve las piernas desde la cadera (si las trae) y se inclina un poco, como una figura de vinilo.
+  const rig = MODELS.get(fig)
+  if (rig) {
+    rig.lean.rotation.x = angle * 0.1
+    const [left, right] = rig.legs
+    if (left) left.rotation.x = angle * 0.8
+    if (right) right.rotation.x = -angle * 0.8
     return
   }
   const limbs = LIMBS.get(fig)

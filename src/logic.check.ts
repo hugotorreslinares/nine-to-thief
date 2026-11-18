@@ -4,7 +4,7 @@ import { decode, encode, parseClaim, parseEntry } from '../api/scores.ts'
 import { POST } from '../api/play.ts'
 import { POST as joinWaitlist } from '../api/waitlist.ts'
 import { EN } from './i18n.ts'
-import { CHAIRS, CHARACTERS, FURNITURE, MAP, OBJECTS, ROUTES, SPAWN, WALLS, extraObjects } from './data.ts'
+import { CHAIRS, CHARACTERS, FURNITURE, MAP, OBJECTS, ROUTES, SPAWN, WALLS, extraObjects, randomLayout } from './data.ts'
 import { COUNTS, LEVELS } from './levels.ts'
 import { FRESH, MAX_STARS, caught, steal, type Progress } from './progress.ts'
 import { PAD_BUTTON, applyPick, parseHostMessage, parsePadState, parsePick, parseToy, type Picks } from './padState.ts'
@@ -53,7 +53,25 @@ for (const pt of [SPAWN, ...CHAIRS, ...CHARACTERS.map((c) => c.home)]) {
   assert.ok(pt.x > 0 && pt.x < MAP.w && pt.z > 0 && pt.z < MAP.d && !solid.some((b) => inside(pt, b, 0.2)), `punto dentro de un obstáculo: ${pt.x}, ${pt.z}`)
 }
 // Todo objeto está al alcance (1,5 m) de algún sitio donde cabe el jugador.
-for (const o of OBJECTS) {
+/** Generador con semilla (mulberry32): las pruebas de reparto al azar tienen que repetirse. */
+const seeded = (seed: number): (() => number) => () => {
+  seed = (seed + 0x6d2b79f5) | 0
+  let t = Math.imul(seed ^ (seed >>> 15), 1 | seed)
+  t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+}
+// El reparto fijo y varios repartos al azar: todos alcanzables, sin objetos encimados y con los mismos números que el servidor.
+const layouts = [OBJECTS, ...[1, 2, 3, 4, 5, 6, 7, 8].map((seed) => randomLayout(seeded(seed)))]
+assert.notDeepEqual(layouts[1]?.map((o) => [o.x, o.z]), layouts[2]?.map((o) => [o.x, o.z]), 'semillas distintas dan repartos distintos')
+for (const layout of layouts) {
+  for (const [i, kind] of LEVELS.entries()) {
+    const here = layout.filter((o) => o.level === i + 1)
+    assert.equal(here.length, kind.places.length, `nivel ${i + 1}: el mismo número de objetos`)
+    assert.deepEqual(here.map((o) => o.index), here.map((_, k) => k), `nivel ${i + 1}: índices 0..n-1`)
+    assert.ok(here.every((a, k) => here.every((b, m) => k === m || Math.hypot(a.x - b.x, a.z - b.z) > 0.3)), `nivel ${i + 1}: objetos encimados`)
+  }
+}
+for (const o of layouts.flat()) {
   let reachable = false
   for (let a = 0; a < 32 && !reachable; a++) {
     for (const d of [0.6, 0.9, 1.2, 1.45]) {

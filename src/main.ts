@@ -2,7 +2,7 @@ import * as THREE from 'three'
 import './style.css'
 import {
   CHAIRS, CHAIR_R, CHARACTERS, CONFERENCE, FURNITURE, LEVEL_SECONDS, MAP, OBJECTS, PATROL_ORDER, ROOMS, ROUTES, SPAWN, WALLS,
-  COOP_EXTRA, extraObjects, levelConfig, type Character, type LevelConfig, type OfficeObject,
+  COOP_EXTRA, extraObjects, levelConfig, randomLayout, type Character, type LevelConfig, type OfficeObject,
 } from './data.ts'
 import { LITE, TOUCH, TV } from './device.ts'
 import { buildFigure, loadModelFigure, setMask, swingLimbs } from './figure.ts'
@@ -277,11 +277,14 @@ const chairs: readonly Chair[] = CHAIRS.map((c) => ({ home: c, mesh: makeChair(c
 const CHAIR_GAP = PLAYER_R + CHAIR_R
 
 /** Objeto robable en su sitio fijo de la oficina. */
-interface Item extends Pt {
+interface Item {
   readonly level: number
   readonly index: number
-  readonly y: number
-  readonly turn: number
+  /** Posición: cambia al empezar una partida nueva (el reparto es al azar). */
+  x: number
+  y: number
+  z: number
+  turn: number
   readonly mesh: THREE.Group
   readonly marker: THREE.Mesh
   /** Objeto extra del modo de dos jugadores: no forma parte del progreso guardado. */
@@ -318,6 +321,16 @@ function buildItem(o: OfficeObject, extra = false): Item {
 }
 
 const objects: readonly Item[] = OBJECTS.map((o) => buildItem(o))
+
+/** Cambia de sitio los objetos: los mismos y con los mismos índices (lo que guarda el servidor), pero en otros escritorios. */
+function relayout(): void {
+  const next = randomLayout()
+  for (const item of objects) {
+    const spot = next.find((o) => o.level === item.level && o.index === item.index)
+    if (spot) Object.assign(item, { x: spot.x, y: spot.y, z: spot.z, turn: spot.turn })
+  }
+}
+relayout() // cada vez que se abre el juego, el reparto es distinto
 
 /** Objetos recién robados, con los segundos que llevan desapareciendo. */
 const vanishing = new Map<Item, number>()
@@ -822,6 +835,7 @@ function beginGame(chosen: Character): void {
     return
   }
   audio ??= new AudioContext()
+  relayout() // cada partida nueva reparte los objetos en otros sitios
   player.char = chosen
   if (account) progress = { ...progress, char: progress.char ?? chosen.id }
   else progress = FRESH // la demo empieza de cero cada vez
@@ -855,7 +869,7 @@ function syncObjects(): void {
     o.mesh.visible = o.level > progress.level || (current && !progress.stolen.includes(o.index))
     o.marker.visible = current && stealable
     o.mesh.scale.setScalar(OBJECT_SCALE)
-    o.mesh.position.y = o.y
+    o.mesh.position.set(o.x, o.y, o.z)
     o.mesh.rotation.y = o.turn
   }
   items = stealable ? objects.filter((o) => o.level === progress.level && o.mesh.visible) : []
@@ -1216,7 +1230,7 @@ function startLevel(): void {
   // De a dos hay más objetos: extras en escritorios libres que no se guardan en el progreso.
   const base = counts[level - 1] ?? 0
   if (second) {
-    extraItems = extraObjects(level, Math.ceil(base * COOP_EXTRA)).map((o) => buildItem(o, true))
+    extraItems = extraObjects(level, Math.ceil(base * COOP_EXTRA), objects).map((o) => buildItem(o, true))
     extrasLeft = extraItems.length
     items = [...items, ...extraItems]
   }

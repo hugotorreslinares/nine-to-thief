@@ -1,4 +1,4 @@
-import { LEVELS } from './levels.ts'
+import { LEVELS, type Place } from './levels.ts'
 import { box, type Box, type Pt } from './logic.ts'
 
 export type Hair = 'short' | 'bald' | 'balding' | 'long' | 'bun' | 'curly'
@@ -282,14 +282,39 @@ function onDesk(c: Character, [a, f]: readonly [number, number]): Pt & { readonl
     : { x: x + f * short * side, z: z + a * long, turn: S }
 }
 
-/** Todos los objetos robables de la oficina, en su sitio fijo. */
+/** Un sitio (escritorio de un personaje o punto fijo) convertido en posición de un objeto de ese nivel. */
+function resolvePlace(level: number, index: number, place: Place): OfficeObject {
+  const kind = LEVELS[level - 1]
+  if (!kind) throw new Error(`Nivel inválido: ${level}`)
+  if (typeof place !== 'string') return { level, index, ...place, turn: 0 }
+  const owner = CHARACTERS.find((c) => c.id === place)
+  if (!owner) throw new Error(`Nivel ${level}: no existe el escritorio de ${place}`)
+  return { level, index, y: 0.75, ...onDesk(owner, kind.slot) }
+}
+
+/** Reparto de partida de los objetos robables: lo que define LEVELS. Lo usan las pruebas y es el punto de partida del juego. */
 export const OBJECTS: readonly OfficeObject[] = LEVELS.flatMap((kind, i) =>
-  kind.places.map((place, index): OfficeObject => {
-    if (typeof place !== 'string') return { level: i + 1, index, ...place, turn: 0 }
-    const owner = CHARACTERS.find((c) => c.id === place)
-    if (!owner) throw new Error(`Nivel ${i + 1}: no existe el escritorio de ${place}`)
-    return { level: i + 1, index, y: 0.75, ...onDesk(owner, kind.slot) }
-  }))
+  kind.places.map((place, index): OfficeObject => resolvePlace(i + 1, index, place)))
+
+/**
+ * Reparto al azar para una partida nueva: en cada nivel, los mismos objetos (mismo número e índices, que es lo que
+ * guarda el servidor) pero en escritorios distintos, además de los puntos especiales que ese nivel ya usaba.
+ * `rand` devuelve un número en [0, 1); se puede fijar para las pruebas.
+ */
+export function randomLayout(rand: () => number = Math.random): readonly OfficeObject[] {
+  return LEVELS.flatMap((kind, i) => {
+    const points = kind.places.filter((place): place is Exclude<Place, string> => typeof place !== 'string')
+    const pool: Place[] = [...CHARACTERS.map((c) => c.id), ...points]
+    // Fisher–Yates
+    for (let k = pool.length - 1; k > 0; k--) {
+      const r = Math.floor(rand() * (k + 1))
+      const a = pool[k] as Place
+      pool[k] = pool[r] as Place
+      pool[r] = a
+    }
+    return pool.slice(0, kind.places.length).map((place, index): OfficeObject => resolvePlace(i + 1, index, place))
+  })
+}
 
 /** Rutas de patrulla en bucle por pasillos libres (lo comprueba logic.check.ts). */
 export const ROUTES: readonly (readonly Pt[])[] = [
@@ -337,11 +362,11 @@ export const COOP_EXTRA = 0.4
  * Objetos extra del modo de dos jugadores: en escritorios que el nivel no usa, repartidos según el nivel.
  * No forman parte del progreso guardado: `index` es negativo.
  */
-export function extraObjects(level: number, count: number): readonly OfficeObject[] {
+export function extraObjects(level: number, count: number, layout: readonly OfficeObject[] = OBJECTS): readonly OfficeObject[] {
   const kind = LEVELS[level - 1]
   if (!kind) throw new Error(`Nivel inválido: ${level}`)
   const used = new Set(kind.places.filter((place): place is string => typeof place === 'string'))
-  const base = OBJECTS.filter((o) => o.level === level)
+  const base = layout.filter((o) => o.level === level)
   // Un escritorio libre pegado a uno del nivel (los hay enfrentados a 1 m) dejaría dos objetos casi encima.
   const free = CHARACTERS.filter((c) => !used.has(c.id)).map((c, i): OfficeObject => ({ level, index: -(i + 1), y: 0.75, ...onDesk(c, kind.slot) }))
     .filter((o) => base.every((b) => Math.hypot(b.x - o.x, b.z - o.z) > 0.7))
