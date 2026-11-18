@@ -235,7 +235,10 @@ export function mugshotHtml(c: Character, capture: number, fill = false): string
 export function posterHtml(): string {
   const outline = '[-webkit-text-stroke:0.07em_black] [paint-order:stroke_fill]'
   return `
-    <img src="/toy.webp" alt="" class="absolute right-[8%] bottom-0 h-[96%] max-w-[46%] object-contain object-bottom drop-shadow-[10px_12px_0_rgb(0_0_0/0.35)] portrait:top-[3%] portrait:right-1/2 portrait:bottom-auto portrait:h-[54%] portrait:max-w-[80%] portrait:translate-x-1/2" />
+    <div class="group absolute right-[8%] bottom-0 aspect-[0.58] h-[96%] max-w-[46%] drop-shadow-[10px_12px_0_rgb(0_0_0/0.35)] portrait:top-[3%] portrait:right-1/2 portrait:bottom-auto portrait:h-[54%] portrait:max-w-[80%] portrait:translate-x-1/2">
+      <img src="/toy-hide.webp" alt="" class="absolute inset-0 size-full object-contain object-bottom transition duration-300 group-hover:scale-95 group-hover:opacity-0" />
+      <img src="/toy.webp" alt="" class="absolute inset-0 size-full origin-bottom scale-90 object-contain object-bottom opacity-0 transition duration-300 group-hover:scale-100 group-hover:opacity-100" />
+    </div>
     <div class="ink absolute top-[40%] left-[5%] flex -translate-y-1/2 flex-col leading-[0.9] portrait:inset-x-0 portrait:top-auto portrait:bottom-[5%] portrait:left-0 portrait:translate-y-0 portrait:items-center portrait:text-center">
       <span class="text-[min(8vw,11vh)] text-white ${outline}">NINE TO</span>
       <span class="text-[min(19vw,27vh)] text-yellow-300 ${outline}">THIEF</span>
