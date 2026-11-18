@@ -21,4 +21,5 @@ export const TAG_HASHES: ReadonlySet<string> = new Set([
   '6716f9d9d5df6bd5a0456bc0e39a0c58e9b5b52f26d84ca441a30b6a21bf93c3',
   '4a66343bec88353c20dbea1041d320e540086ed1ead6bff43da89ae6a3135dbe',
   'abf24dce7dbfd2dbc90edd542de240d0d8bc346a05383d8258408a956a9e36f7',
+  '2e5fa7811625ae241d0e7d0e4a887a417647c2e1bb748d51522ae34d31f86133',
 ])
