@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import type { Look } from './data.ts'
 import { LITE } from './device.ts'
 import { surface, type Surface } from './surface.ts'
@@ -33,8 +34,41 @@ const MASKS = new WeakMap<THREE.Group, THREE.Group>()
 const BAND = new THREE.TorusGeometry(0.41, 0.075, LITE ? 4 : 8, LITE ? 12 : 24).rotateX(Math.PI / 2)
 const MASK = 0x16161a
 
+/** Figuras hechas con un modelo 3D (una sola malla, sin extremidades): el grupo que se inclina al caminar. */
+const MODELS = new WeakMap<THREE.Group, THREE.Group>()
+
+/**
+ * Carga un modelo GLB como figura: mira a +x como las demás y mide `height` metros.
+ * Devuelve undefined si no se pudo cargar: el juego usa entonces la figura de piezas.
+ */
+export async function loadModelFigure(url: string, height: number): Promise<THREE.Group | undefined> {
+  try {
+    const gltf = await new GLTFLoader().loadAsync(url)
+    const g = new THREE.Group()
+    const lean = new THREE.Group()
+    const facing = new THREE.Group()
+    facing.rotation.y = Math.PI / 2 // los modelos de Blender miran a +z; las figuras, a +x
+    gltf.scene.scale.setScalar(height)
+    gltf.scene.traverse((o) => {
+      if (!(o instanceof THREE.Mesh)) return
+      o.castShadow = true
+      // En GPU débil, sombreado simple con la misma textura.
+      if (LITE && o.material instanceof THREE.MeshStandardMaterial) o.material = new THREE.MeshLambertMaterial({ map: o.material.map })
+    })
+    facing.add(gltf.scene)
+    lean.add(facing)
+    g.add(lean)
+    MODELS.set(g, lean)
+    return g
+  } catch (err) {
+    console.warn(`No se pudo cargar el modelo ${url}`, err)
+    return undefined
+  }
+}
+
 /** Pone o quita el antifaz de ladrón. */
 export function setMask(fig: THREE.Group, on: boolean): void {
+  if (MODELS.has(fig)) return // el modelo lleva el antifaz puesto siempre
   const mask = MASKS.get(fig)
   if (!mask) throw new Error('Figura sin antifaz registrado')
   mask.visible = on
@@ -42,6 +76,12 @@ export function setMask(fig: THREE.Group, on: boolean): void {
 
 /** Balancea piernas y brazos opuestos; ángulo 0 = quieto. */
 export function swingLimbs(fig: THREE.Group, angle: number): void {
+  // Un modelo de una pieza no mueve brazos ni piernas: se balancea de lado a lado como una figura de vinilo.
+  const lean = MODELS.get(fig)
+  if (lean) {
+    lean.rotation.x = angle * 0.18
+    return
+  }
   const limbs = LIMBS.get(fig)
   if (!limbs) throw new Error('Figura sin extremidades registradas')
   limbs.legs[0].rotation.z = angle

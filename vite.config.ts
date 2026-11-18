@@ -35,5 +35,6 @@ const devApi: Plugin = {
 export default defineConfig({
   plugins: [tailwindcss(), devApi],
   // /en es la misma app con metadatos en inglés para compartir; /pad.html es el celular usado como mando de la tele.
-  build: { rolldownOptions: { input: { main: 'index.html', en: 'en/index.html', pad: 'pad.html', tv: 'tv/index.html' } } },
+  // es2022: el juego espera a cargar el modelo del protagonista antes de arrancar (await al nivel del módulo).
+  build: { target: 'es2022', rolldownOptions: { input: { main: 'index.html', en: 'en/index.html', pad: 'pad.html', tv: 'tv/index.html' } } },
 })

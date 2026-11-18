@@ -5,7 +5,7 @@ import {
   COOP_EXTRA, extraObjects, levelConfig, type Character, type LevelConfig, type OfficeObject,
 } from './data.ts'
 import { LITE, TOUCH, TV } from './device.ts'
-import { buildFigure, setMask, swingLimbs } from './figure.ts'
+import { buildFigure, loadModelFigure, setMask, swingLimbs } from './figure.ts'
 import { lang, setLang, t } from './i18n.ts'
 import { COUNTS, DEMO_COUNTS, LEVELS } from './levels.ts'
 import { FRESH, MAX_STARS, caught, steal, type Progress } from './progress.ts'
@@ -96,7 +96,9 @@ probe?.getExtension('WEBGL_lose_context')?.loseContext() // el sondeo no debe ga
 const renderer = new (hasWebGL2 ? THREE.WebGLRenderer : THREE.WebGL1Renderer)({ canvas, antialias: !LITE, alpha: true })
 renderer.shadowMap.enabled = !LITE
 
-const figures = new Map(CHARACTERS.map((c) => [c.id, buildFigure(c.look)]))
+// El protagonista es el modelo 3D de la figura física (más liviano en la tele); si no carga, se arma con piezas.
+const heroModel = await loadModelFigure(LITE ? '/models/nine-tv.glb' : '/models/nine-desktop.glb', 1.5)
+const figures = new Map(CHARACTERS.map((c) => [c.id, c.hero && heroModel ? heroModel : buildFigure(c.look)]))
 const figureOf = (c: Character): THREE.Group => {
   const fig = figures.get(c.id)
   if (!fig) throw new Error(`Sin figura para ${c.id}`)
