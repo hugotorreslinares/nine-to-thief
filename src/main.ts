@@ -9,7 +9,7 @@ import { buildFigure, loadModelFigure, setMask, swingLimbs } from './figure.ts'
 import { lang, setLang, t } from './i18n.ts'
 import { COUNTS, DEMO_COUNTS, LEVELS } from './levels.ts'
 import { FRESH, MAX_STARS, caught, steal, type Progress } from './progress.ts'
-import { PlayError, close, idle, joinWaitlist, open, register, report, type Account } from './session.ts'
+import { PlayError, close, idle, joinWaitlist, open, register, report, sendFeedback, type Account } from './session.ts'
 import { PAD_BUTTON, applyPick, type Picks } from './padState.ts'
 import { mugshotHtml, posterHtml } from './poster.ts'
 import qrcode from 'qrcode-generator'
@@ -628,6 +628,19 @@ ui.innerHTML = `
       <button id="waitClose" type="button" class="font-gta cursor-pointer rounded bg-neutral-700 px-4 py-1 text-lg text-white">${t('CERRAR')}</button>
     </form>
   </dialog>
+  <dialog id="feedback" class="pointer-events-auto m-auto w-full max-w-sm rounded-xl border-2 border-emerald-400 bg-neutral-900 p-5 text-white backdrop:bg-black/70">
+    <p class="font-gta mb-1 text-3xl text-emerald-400">${t('TU OPINIÓN')}</p>
+    <p class="mb-3 font-sans text-sm text-neutral-300">${t('Cuéntanos qué funcionó y qué no. Lo leo todo.')}</p>
+    <form id="fbForm" class="flex flex-col gap-2 font-sans">
+      <div id="fbStars" class="flex justify-center gap-1 text-3xl text-yellow-300"></div>
+      <textarea id="fbText" required maxlength="1000" rows="4" placeholder="${t('Tu opinión')}" class="rounded-lg border-2 border-neutral-600 bg-neutral-800 px-3 py-2 text-base text-white select-text"></textarea>
+      <input id="fbEmail" type="email" maxlength="254" autocomplete="email" placeholder="${t('Correo (opcional, solo si quieres respuesta)')}" class="rounded-lg border-2 border-neutral-600 bg-neutral-800 px-3 py-2 text-base text-white select-text" />
+      <input id="fbTrap" name="website" tabindex="-1" autocomplete="off" aria-hidden="true" class="absolute -left-[9999px]" />
+      <p id="fbStatus" class="min-h-5 text-sm text-neutral-300"></p>
+      <button id="fbSend" class="font-gta cursor-pointer rounded bg-emerald-500 px-4 py-2 text-xl text-white disabled:opacity-50">${t('ENVIAR')}</button>
+      <button id="fbClose" type="button" class="font-gta cursor-pointer rounded bg-neutral-700 px-4 py-1 text-lg text-white">${t('CERRAR')}</button>
+    </form>
+  </dialog>
   <div id="padPoster" class="pointer-events-none absolute bottom-2 left-2 z-20 hidden w-40 flex-col items-center gap-1 rounded bg-white p-2 text-center font-sans text-xs leading-tight text-black">
     <img class="padQr size-32 [image-rendering:pixelated]" alt="" />
     <span class="padText"></span>
@@ -645,6 +658,7 @@ ui.innerHTML = `
     <p id="challenge" class="ink hidden text-center text-lg text-pink-400 md:text-2xl"></p>
     <div class="flex flex-wrap items-center justify-center gap-2">
       <button id="waitBtn" class="ink cursor-pointer rounded-lg border-2 border-black bg-pink-500 px-4 py-2 text-lg">${t('🔔 QUIERO MI ART TOY')}</button>
+      <button id="fbBtn" class="ink cursor-pointer rounded-lg border-2 border-black bg-emerald-500 px-4 py-2 text-lg">${t('💬 OPINIÓN')}</button>
       <button id="langBtn" class="ink cursor-pointer rounded-lg border-2 border-black bg-neutral-700 px-4 py-2 text-lg">${lang === 'es' ? 'ENGLISH' : 'ESPAÑOL'}</button>
     </div>
     <dialog id="signup" class="pointer-events-auto m-auto w-full max-w-sm rounded-xl border-2 border-yellow-300 bg-neutral-900 p-5 text-white backdrop:bg-black/70">
@@ -724,6 +738,16 @@ const dom = {
   waitStatus: el<HTMLParagraphElement>('#waitStatus'),
   waitSend: el<HTMLButtonElement>('#waitSend'),
   waitClose: el<HTMLButtonElement>('#waitClose'),
+  fbBtn: el<HTMLButtonElement>('#fbBtn'),
+  feedback: el<HTMLDialogElement>('#feedback'),
+  fbForm: el<HTMLFormElement>('#fbForm'),
+  fbStars: el<HTMLDivElement>('#fbStars'),
+  fbText: el<HTMLTextAreaElement>('#fbText'),
+  fbEmail: el<HTMLInputElement>('#fbEmail'),
+  fbTrap: el<HTMLInputElement>('#fbTrap'),
+  fbStatus: el<HTMLParagraphElement>('#fbStatus'),
+  fbSend: el<HTMLButtonElement>('#fbSend'),
+  fbClose: el<HTMLButtonElement>('#fbClose'),
   langBtn: el<HTMLButtonElement>('#langBtn'),
   notice: el<HTMLDivElement>('#notice'),
   signup: el<HTMLDialogElement>('#signup'),
@@ -1147,6 +1171,42 @@ dom.waitForm.addEventListener('submit', (e) => {
     console.error(err)
     dom.waitSend.disabled = false
     dom.waitStatus.textContent = err instanceof PlayError && err.status === 400 ? t('Revisa tu correo') : t('No se pudo guardar. Inténtalo de nuevo.')
+  })
+})
+
+let rating = 0
+const stars = [1, 2, 3, 4, 5].map((n) => {
+  const star = document.createElement('button')
+  star.type = 'button'
+  star.className = 'cursor-pointer'
+  star.setAttribute('aria-label', `${n}/5`)
+  star.addEventListener('click', () => {
+    rating = n
+    stars.forEach((s, i) => (s.textContent = i < n ? '★' : '☆'))
+  })
+  star.textContent = '☆'
+  return star
+})
+dom.fbStars.replaceChildren(...stars)
+dom.fbBtn.addEventListener('click', (e) => {
+  e.stopPropagation()
+  dom.feedback.showModal()
+})
+dom.fbClose.addEventListener('click', () => dom.feedback.close())
+dom.fbForm.addEventListener('submit', (e) => {
+  e.preventDefault()
+  if (rating === 0) {
+    dom.fbStatus.textContent = t('Elige una valoración de 1 a 5 estrellas')
+    return
+  }
+  dom.fbSend.disabled = true
+  sendFeedback(rating, dom.fbText.value, dom.fbEmail.value, lang, dom.fbTrap.value).then(() => {
+    dom.fbStatus.textContent = t('✓ ¡Gracias por tu opinión!')
+    dom.fbText.value = ''
+  }).catch((err: unknown) => {
+    console.error(err)
+    dom.fbSend.disabled = false
+    dom.fbStatus.textContent = err instanceof PlayError && err.status === 429 ? t('Demasiados mensajes, prueba más tarde') : t('No se pudo guardar. Inténtalo de nuevo.')
   })
 })
 dom.langBtn.addEventListener('click', () => setLang(lang === 'es' ? 'en' : 'es'))

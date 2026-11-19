@@ -143,6 +143,15 @@ export const EN: Readonly<Record<string, string>> = {
   '✓ Listo. Te avisaremos cuando salgan.': '✓ Done. We will let you know when they drop.',
   'Revisa tu correo': 'Check your email address',
   'No se pudo guardar. Inténtalo de nuevo.': 'Could not save. Please try again.',
+  // opinión
+  '💬 OPINIÓN': '💬 FEEDBACK',
+  'TU OPINIÓN': 'YOUR FEEDBACK',
+  'Cuéntanos qué funcionó y qué no. Lo leo todo.': 'Tell us what worked and what did not. I read everything.',
+  'Tu opinión': 'Your feedback',
+  'Correo (opcional, solo si quieres respuesta)': 'Email (optional, only if you want a reply)',
+  'Elige una valoración de 1 a 5 estrellas': 'Pick a rating from 1 to 5 stars',
+  '✓ ¡Gracias por tu opinión!': '✓ Thanks for your feedback!',
+  'Demasiados mensajes, prueba más tarde': 'Too many messages, try again later',
   // tablón
   'Usa 1 a 12 letras, números, espacios, - o _': 'Use 1 to 12 letters, numbers, spaces, - or _',
   'Comprobando…': 'Checking…',

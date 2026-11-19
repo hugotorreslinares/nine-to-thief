@@ -3,6 +3,7 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { decode, encode, parseClaim, parseEntry } from '../api/scores.ts'
 import { POST } from '../api/play.ts'
 import { POST as joinWaitlist } from '../api/waitlist.ts'
+import { POST as sendFeedback } from '../api/feedback.ts'
 import { EN } from './i18n.ts'
 import { CHAIRS, CHARACTERS, FURNITURE, MAP, OBJECTS, ROUTES, SPAWN, WALLS, extraObjects, randomLayout } from './data.ts'
 import { COUNTS, LEVELS } from './levels.ts'
@@ -104,6 +105,7 @@ assert.equal(p.level, 1, 'nunca baja del nivel 1')
 
 const strings = new Map<string, string>()
 const hashes = new Map<string, Map<string, string>>()
+const lists = new Map<string, string[]>()
 const hashOf = (key: string): Map<string, string> => hashes.get(key) ?? hashes.set(key, new Map()).get(key) ?? assert.fail()
 function fakeRedis([cmd, key = '', ...args]: readonly string[]): unknown {
   switch (cmd) {
@@ -112,6 +114,10 @@ function fakeRedis([cmd, key = '', ...args]: readonly string[]): unknown {
     case 'DEL': return Number(hashes.delete(key))
     case 'HSET': for (let i = 0; i + 1 < args.length; i += 2) hashOf(key).set(args[i] ?? '', args[i + 1] ?? ''); return 1
     case 'HSETNX': return hashOf(key).has(args[0] ?? '') ? 0 : (hashOf(key).set(args[0] ?? '', args[1] ?? ''), 1)
+    case 'INCR': return Number(strings.set(key, String(Number(strings.get(key) ?? 0) + 1)).get(key))
+    case 'EXPIRE': return 1
+    case 'LPUSH': return (lists.get(key) ?? lists.set(key, []).get(key) ?? assert.fail()).unshift(args[0] ?? '')
+    case 'LTRIM': lists.set(key, (lists.get(key) ?? []).slice(Number(args[0]), Number(args[1]) + 1)); return 'OK'
     case 'HDEL': return Number(hashOf(key).delete(args[0] ?? ''))
     case 'HMGET': return args.map((field) => hashOf(key).get(field) ?? null)
     default: throw new Error(`Redis falso: falta ${cmd}`)
@@ -163,6 +169,22 @@ const wait = (email: unknown): Promise<Response> => joinWaitlist(new Request('ht
 assert.equal((await wait('no-es-correo')).status, 400, 'la lista de espera valida el correo')
 assert.equal((await wait(' Fan@Example.com ')).status, 200, 'apunta un correo')
 assert.ok(hashOf('waitlist').has('fan@example.com'), 'lo guarda normalizado')
+
+// ---------- Comentarios ----------
+
+const feedback = (body: object, ip = '1.1.1.1'): Promise<Response> =>
+  sendFeedback(new Request('http://x/api/feedback', { method: 'POST', headers: { 'x-forwarded-for': ip }, body: JSON.stringify(body) }))
+assert.equal((await feedback({ rating: 4, text: 'Muy bueno', lang: 'es' })).status, 200, 'guarda un comentario válido')
+assert.equal(JSON.parse(lists.get('feedback')?.[0] ?? '{}').text, 'Muy bueno', 'queda en la lista')
+assert.equal((await feedback({ rating: 9, text: 'x' }, '2.2.2.2')).status, 400, 'valoración fuera de rango')
+assert.equal((await feedback({ rating: 3, text: '   ' }, '2.2.2.2')).status, 400, 'texto vacío')
+assert.equal((await feedback({ rating: 3, text: 'x'.repeat(1001) }, '2.2.2.2')).status, 400, 'texto demasiado largo')
+assert.equal((await feedback({ rating: 3, text: 'hola', email: 'no' }, '2.2.2.2')).status, 400, 'correo inválido')
+const before = lists.get('feedback')?.length
+assert.equal((await feedback({ rating: 3, text: 'spam', website: 'http://x' }, '3.3.3.3')).status, 200, 'la trampa responde bien')
+assert.equal(lists.get('feedback')?.length, before, 'pero no guarda nada')
+for (let i = 0; i < 5; i++) await feedback({ rating: 3, text: 'otro' }, '4.4.4.4')
+assert.equal((await feedback({ rating: 3, text: 'otro' }, '4.4.4.4')).status, 429, 'límite de 5 por hora y por IP')
 
 // ---------- Traducciones ----------
 

@@ -91,3 +91,13 @@ export async function joinWaitlist(email: string, lang: string): Promise<void> {
   })
   if (!res.ok) throw new PlayError(res.status, `Error ${res.status}`)
 }
+
+/** Envía un comentario del jugador (valoración de 1 a 5, texto y correo opcional). */
+export async function sendFeedback(rating: number, text: string, email: string, lang: string, website: string): Promise<void> {
+  const res = await fetch('/api/feedback', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ rating, text, email, lang, website }),
+  })
+  if (!res.ok) throw new PlayError(res.status, `Error ${res.status}`)
+}
