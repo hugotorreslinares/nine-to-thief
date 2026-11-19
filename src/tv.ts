@@ -34,7 +34,7 @@ if (!root) throw new Error('Falta #tv en tv/index.html')
 root.innerHTML = `
   <header class="ink flex flex-col gap-1">
     <a href="/" class="text-sm text-sky-300 underline">← ${t('Volver al juego')}</a>
-    <h1 class="text-4xl text-yellow-300 md:text-6xl">NINE TO <span class="text-emerald-400">THIEF</span></h1>
+    <h1 class="font-title text-4xl text-yellow-300 md:text-6xl">NINE TO <span class="text-emerald-400">THIEF</span></h1>
     <p class="text-2xl">${t('JUEGA EN TU TELEVISOR')}</p>
   </header>
   <p class="font-sans text-lg text-neutral-200">${t('Roba objetos de la oficina sin que te vean, ahora en Android TV y Google TV. Gratis.')}</p>

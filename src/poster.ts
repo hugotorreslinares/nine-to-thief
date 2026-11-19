@@ -240,8 +240,8 @@ export function posterHtml(): string {
       <img src="/toy.webp" alt="" class="absolute inset-0 size-full origin-bottom scale-90 object-contain object-bottom opacity-0 transition duration-300 group-hover:scale-100 group-hover:opacity-100" />
     </div>
     <div class="ink absolute top-[40%] left-[5%] flex -translate-y-1/2 flex-col leading-[0.9] portrait:inset-x-0 portrait:top-auto portrait:bottom-[5%] portrait:left-0 portrait:translate-y-0 portrait:items-center portrait:text-center">
-      <span class="text-[min(8vw,11vh)] text-white ${outline}">NINE TO</span>
-      <span class="text-[min(19vw,27vh)] text-yellow-300 ${outline}">THIEF</span>
+      <span class="font-title text-[min(6vw,8.5vh)] text-white ${outline}">NINE TO</span>
+      <span class="font-title text-[min(14vw,20vh)] text-yellow-300 ${outline}">THIEF</span>
       <span class="mt-3 text-[min(2.8vw,3.8vh)] text-white ${outline}">${t('ROBA LA OFICINA SIN QUE TE VEAN')}</span>
       <span class="mt-4 animate-pulse text-[min(2.6vw,3.4vh)] text-yellow-300 ${outline}">${TV ? t('OK PARA EMPEZAR') : t('ENTER O TOCA PARA EMPEZAR')}</span>
     </div>`

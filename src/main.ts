@@ -648,7 +648,7 @@ ui.innerHTML = `
   </div>
   <div id="poster" class="pointer-events-auto absolute inset-0 z-10 cursor-pointer overflow-hidden bg-[repeating-conic-gradient(from_0deg_at_72%_50%,#ff8a1f_0_7.5deg,#c2410c_7.5deg_15deg)] portrait:bg-[repeating-conic-gradient(from_0deg_at_50%_30%,#ff8a1f_0_7.5deg,#c2410c_7.5deg_15deg)]">${posterHtml()}</div>
   <div id="menu" class="pointer-events-auto absolute inset-0 flex flex-col items-center gap-4 overflow-y-auto bg-black/75 p-3 md:p-6">
-    <h1 class="ink text-center text-4xl text-yellow-300 md:text-7xl">NINE TO <span class="text-emerald-400">THIEF</span></h1>
+    <h1 class="ink font-title text-center text-4xl text-yellow-300 md:text-7xl">NINE TO <span class="text-emerald-400">THIEF</span></h1>
     <p class="ink text-center text-base text-neutral-200 md:text-xl">${t('Elige a tu ladrón. Roba sin que te vean mientras lo coges. Un minuto por nivel.')}</p>
     <div id="padMenu" class="hidden items-center gap-3 rounded-lg bg-white p-2 font-sans text-sm text-black">
       <img class="padQr size-24 [image-rendering:pixelated]" alt="" />
@@ -709,7 +709,7 @@ ui.innerHTML = `
         <button class="font-gta cursor-pointer rounded bg-yellow-300 px-4 py-1 text-lg text-black">${t('LISTO')}</button>
       </form>
     </dialog>
-    <div id="roster" class="grid w-full max-w-6xl grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4"></div>
+    <div id="roster" class="grid w-full max-w-6xl grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"></div>
     <p class="ink text-center text-base text-neutral-300 md:text-lg">${pick('Palanca: moverse · mantén ROBAR · toca la habilidad para usarla', 'Flechas: moverse · mantén OK: robar · PLAY: habilidad · Atrás: menú', 'WASD / flechas: moverse · mantén E: robar · Q: habilidad · Esc: menú')}</p>
     <footer class="mt-4 flex w-full max-w-6xl flex-col items-center gap-3 border-t-2 border-neutral-700 pt-5 pb-6 text-center font-sans text-sm text-neutral-400">
       <a href="https://www.instagram.com/mrmonomalo/" target="_blank" rel="noopener noreferrer" class="flex items-center gap-2 rounded-full border-2 border-black bg-linear-to-r from-fuchsia-600 via-rose-500 to-amber-400 px-4 py-2 text-base font-bold text-white hover:brightness-110">
@@ -834,12 +834,12 @@ function renderMenu(): void {
   const own = account ? CHARACTERS.find((c) => c.id === progress.char) ?? CHARACTERS.find((c) => c.hero) : undefined
   // Datos estáticos propios: no hay entrada de usuario en este HTML.
   dom.roster.innerHTML = (own ? [own] : CHARACTERS).map((c) => `
-  <button data-id="${c.id}" class="flex cursor-pointer items-center gap-3 rounded-lg border-2 ${c.hero ? 'border-yellow-300' : 'border-neutral-700'} bg-neutral-900/90 p-2 text-left hover:border-yellow-300 hover:bg-neutral-800">
-    <img src="${portraits.get(c.id) ?? ''}" alt="${c.name}" class="size-16 shrink-0 md:size-20" />
+  <button data-id="${c.id}" class="flex cursor-pointer items-center gap-4 rounded-lg border-2 ${c.hero ? 'border-yellow-300' : 'border-neutral-700'} bg-neutral-900/90 p-2 text-left hover:border-yellow-300 hover:bg-neutral-800">
+    <img src="${portraits.get(c.id) ?? ''}" alt="${c.name}" class="size-20 shrink-0 md:size-28" />
     <span class="flex flex-col">
-      <span class="text-2xl text-yellow-300">${c.name}</span>
-      <span class="text-base text-sky-300">${t(c.ability.name)}</span>
-      <span class="font-sans text-xs text-neutral-300">${t(c.ability.text)}</span>
+      <span class="text-3xl text-yellow-300">${c.name}</span>
+      <span class="text-xl text-sky-300">${t(c.ability.name)}</span>
+      <span class="font-sans text-sm text-neutral-200 md:text-base">${t(c.ability.text)}</span>
     </span>
     ${pickTag(c.id)}
   </button>`).join('')

@@ -1,8 +1,11 @@
 @import "tailwindcss";
 /* Impact no existe en Android ni en muchas teles: Anton es libre y se parece, y va dentro de la app. */
 @import "@fontsource/anton";
+/* Solo para el título del juego. */
+@import "@fontsource/bungee";
 
 @theme {
+  --font-title: Bungee, Anton, Impact, sans-serif;
   --font-gta: Anton, Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
 }
 
