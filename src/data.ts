@@ -346,14 +346,17 @@ export const LEVEL_SECONDS = 60
 
 export function levelConfig(n: number): LevelConfig {
   return {
-    range: Math.min(3.5 + 0.5 * n, 7.5),
-    halfAngle: (Math.min(22 + 3 * n, 42) * Math.PI) / 180,
-    sweepSpeed: 0.5 + 0.12 * n,
-    sweepAmp: Math.min(0.5 + 0.12 * n, 1.3),
-    patrols: Math.min(n - 1, 6),
-    walk: Math.min(1.2 + 0.15 * n, 2.4),
+    range: Math.min(3.5 + 0.4 * n, 6.5),
+    halfAngle: (Math.min(22 + 2.5 * n, 36) * Math.PI) / 180,
+    sweepSpeed: Math.min(0.5 + 0.08 * n, 1.1),
+    sweepAmp: Math.min(0.5 + 0.1 * n, 1.2),
+    patrols: Math.min(n - 1, 5),
+    walk: Math.min(1.2 + 0.12 * n, 2),
   }
 }
+
+/** Compañeros que ese día no están en la oficina: desde el nivel 4, uno más por nivel (máx. 6). */
+export const awayCount = (n: number): number => Math.max(0, Math.min(n - 3, 6))
 
 /** Fracción de objetos extra por nivel cuando juegan dos (se afina jugando). */
 export const COOP_EXTRA = 0.4

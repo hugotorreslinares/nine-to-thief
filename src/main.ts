@@ -2,7 +2,7 @@ import * as THREE from 'three'
 import './style.css'
 import {
   CHAIRS, CHAIR_R, CHARACTERS, CONFERENCE, FURNITURE, LEVEL_SECONDS, MAP, OBJECTS, PATROL_ORDER, ROOMS, ROUTES, SPAWN, WALLS,
-  COOP_EXTRA, extraObjects, levelConfig, randomLayout, type Character, type LevelConfig, type OfficeObject,
+  COOP_EXTRA, awayCount, extraObjects, levelConfig, randomLayout, type Character, type LevelConfig, type OfficeObject,
 } from './data.ts'
 import { LITE, TOUCH, TV } from './device.ts'
 import { buildFigure, loadModelFigure, setMask, swingLimbs } from './figure.ts'
@@ -1267,7 +1267,10 @@ function startLevel(): void {
   const plays = (c: Character): boolean => crew.some((p) => p.char === c)
 
   const patrollers = PATROL_ORDER.filter((id) => !crew.some((p) => p.char.id === id)).slice(0, cfg.patrols)
-  npcs = allNpcs.filter((npc) => !plays(npc.char))
+  // Ausentes: entre los que no patrullan ni juegan, rotando según el nivel para que no sean siempre los mismos.
+  const staying = allNpcs.filter((npc) => !plays(npc.char) && !patrollers.includes(npc.char.id))
+  const away = new Set(Array.from({ length: Math.min(awayCount(level), staying.length) }, (_, i) => staying[(level * 3 + i) % staying.length]))
+  npcs = allNpcs.filter((npc) => !plays(npc.char) && !away.has(npc))
   for (const npc of allNpcs) {
     const route = ROUTES[patrollers.indexOf(npc.char.id) % ROUTES.length]
     const start = route?.[0] ?? npc.char.home
@@ -1275,8 +1278,8 @@ function startLevel(): void {
       x: start.x, z: start.z, dir: npc.char.home.dir, route, wp: 1,
       lureT: 0, freezeT: 0, blindT: 0, seenT: 0,
     })
-    npc.cone.visible = !plays(npc.char)
-    npc.fig.visible = true
+    npc.cone.visible = npcs.includes(npc)
+    npc.fig.visible = !away.has(npc)
   }
   for (const c of CHARACTERS) if (c.hero) figureOf(c).visible = plays(c)
 
