@@ -31,6 +31,18 @@ const MIN_VIEW_WIDTH = 10
 const ZOOM_KEY = 'office-theft-zoom'
 const CLOSE_ZOOM = 0.62
 
+/** Silencio: se recuerda en cada dispositivo. */
+const MUTE_KEY = 'office-theft-muted'
+
+function loadMuted(): boolean {
+  try {
+    return localStorage.getItem(MUTE_KEY) === '1'
+  } catch (err) {
+    console.warn('Sin acceso a localStorage', err)
+    return false
+  }
+}
+
 function loadCloseUp(): boolean {
   try {
     const saved = localStorage.getItem(ZOOM_KEY)
@@ -60,6 +72,7 @@ function legendHtml(): string {
     item(key('E'), t('ROBAR (mantén)')),
     item(key('Q'), t('HABILIDAD')),
     item(key('Z'), t('ZOOM')),
+    item(key('M'), t('SILENCIO')),
     item(key('Esc'), t('MENÚ')),
   ].join('')
 }
@@ -497,9 +510,10 @@ let crew: readonly Player[] = [player]
 // ---------- Sonido ----------
 
 let audio: AudioContext | undefined
+let muted = loadMuted()
 
 function tone(freq: number, start: number, seconds: number, type: OscillatorType = 'square', volume = 0.07): void {
-  if (!audio) return
+  if (!audio || muted) return
   const osc = audio.createOscillator()
   const gain = audio.createGain()
   osc.type = type
@@ -558,7 +572,7 @@ function setStealing(p: Player, on: boolean): void {
   const any = players.some((q) => q.stealing)
   if (!audio || (!any && !suspense)) return
   suspense ??= makeSuspense(audio)
-  suspense.gain.setTargetAtTime(any ? 0.22 : 0, audio.currentTime, 0.04)
+  suspense.gain.setTargetAtTime(any && !muted ? 0.22 : 0, audio.currentTime, 0.04)
 }
 
 function stopStealing(): void {
@@ -659,6 +673,7 @@ ui.innerHTML = `
     <div class="flex flex-wrap items-center justify-center gap-2">
       <button id="waitBtn" class="ink cursor-pointer rounded-lg border-2 border-black bg-pink-500 px-4 py-2 text-lg">${t('🔔 QUIERO MI ART TOY')}</button>
       <button id="fbBtn" class="ink cursor-pointer rounded-lg border-2 border-black bg-emerald-500 px-4 py-2 text-lg">${t('💬 OPINIÓN')}</button>
+      <button id="muteBtn" class="ink cursor-pointer rounded-lg border-2 border-black bg-neutral-700 px-4 py-2 text-lg"></button>
       <button id="langBtn" class="ink cursor-pointer rounded-lg border-2 border-black bg-neutral-700 px-4 py-2 text-lg">${lang === 'es' ? 'ENGLISH' : 'ESPAÑOL'}</button>
     </div>
     <dialog id="signup" class="pointer-events-auto m-auto w-full max-w-sm rounded-xl border-2 border-yellow-300 bg-neutral-900 p-5 text-white backdrop:bg-black/70">
@@ -749,6 +764,7 @@ const dom = {
   fbSend: el<HTMLButtonElement>('#fbSend'),
   fbClose: el<HTMLButtonElement>('#fbClose'),
   langBtn: el<HTMLButtonElement>('#langBtn'),
+  muteBtn: el<HTMLButtonElement>('#muteBtn'),
   notice: el<HTMLDivElement>('#notice'),
   signup: el<HTMLDialogElement>('#signup'),
   signupForm: el<HTMLFormElement>('#signupForm'),
@@ -1209,6 +1225,18 @@ dom.fbForm.addEventListener('submit', (e) => {
     dom.fbStatus.textContent = err instanceof PlayError && err.status === 429 ? t('Demasiados mensajes, prueba más tarde') : t('No se pudo guardar. Inténtalo de nuevo.')
   })
 })
+function toggleMute(): void {
+  muted = !muted
+  try {
+    localStorage.setItem(MUTE_KEY, muted ? '1' : '0')
+  } catch (err) {
+    console.warn('Sin acceso a localStorage', err)
+  }
+  dom.muteBtn.textContent = muted ? t('🔇 SIN SONIDO') : t('🔊 SONIDO')
+  if (suspense && audio) suspense.gain.setTargetAtTime(!muted && players.some((q) => q.stealing) ? 0.22 : 0, audio.currentTime, 0.04)
+}
+dom.muteBtn.textContent = muted ? t('🔇 SIN SONIDO') : t('🔊 SONIDO')
+dom.muteBtn.addEventListener('click', toggleMute)
 dom.langBtn.addEventListener('click', () => setLang(lang === 'es' ? 'en' : 'es'))
 document.documentElement.lang = lang
 
@@ -1645,6 +1673,7 @@ addEventListener('keydown', (e) => {
   if (e.repeat) return
   if (ABILITY_KEYS.has(id) || ABILITY_KEYS.has(e.key)) useAbility(player)
   else if (id === 'KeyZ') toggleZoom()
+  else if (id === 'KeyM') toggleMute()
   else if (id === 'Enter') confirm()
   else if (id === 'Escape' && phase !== 'menu') showMenu()
 })

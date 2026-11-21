@@ -151,6 +151,9 @@ export const EN: Readonly<Record<string, string>> = {
   'Correo (opcional, solo si quieres respuesta)': 'Email (optional, only if you want a reply)',
   'Elige una valoración de 1 a 5 estrellas': 'Pick a rating from 1 to 5 stars',
   '✓ ¡Gracias por tu opinión!': '✓ Thanks for your feedback!',
+  'SILENCIO': 'MUTE',
+  '🔇 SIN SONIDO': '🔇 MUTED',
+  '🔊 SONIDO': '🔊 SOUND',
   'Demasiados mensajes, prueba más tarde': 'Too many messages, try again later',
   // tablón
   'Usa 1 a 12 letras, números, espacios, - o _': 'Use 1 to 12 letters, numbers, spaces, - or _',
