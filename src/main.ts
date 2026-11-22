@@ -20,7 +20,7 @@ import { claimNick, cleanNick, fetchBoard, isTaken, loadNick, saveNick, submitSc
 import { canSee, coopZoom, rayDistance, resolveCircle, turnToward, type Box, type Pt } from './logic.ts'
 
 const BASE_SPEED = 4.2
-const BASE_GRAB = 1.3
+const BASE_GRAB = 0.65
 const REACH = 1.5
 const PLAYER_R = 0.35
 const VIEW = 15
