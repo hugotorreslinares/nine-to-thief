@@ -1,12 +1,15 @@
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
+import { bakeChildren } from './bake.ts'
 import type { Look } from './data.ts'
 import { LITE } from './device.ts'
 import { surface, type Surface } from './surface.ts'
 
 // En GPU débil (LITE) todo se dibuja con muchos menos polígonos.
 const RADIAL = LITE ? 8 : 16
-const SPHERE = new THREE.SphereGeometry(1, LITE ? 10 : 24, LITE ? 6 : 16)
+const SPHERE = new THREE.SphereGeometry(1, LITE ? 10 : 20, LITE ? 6 : 12)
+// Las piezas pequeñas (ojos, botones, manos) no necesitan tantos polígonos.
+const SPHERE_SMALL = new THREE.SphereGeometry(1, LITE ? 6 : 10, LITE ? 4 : 6)
 const CAP = new THREE.SphereGeometry(1, LITE ? 10 : 24, LITE ? 4 : 12, 0, Math.PI * 2, 0, Math.PI * 0.5)
 const BOX = new THREE.BoxGeometry(1, 1, 1)
 const CYLINDER = new THREE.CylinderGeometry(1, 1, 1, RADIAL)
@@ -131,7 +134,7 @@ export function buildFigure(look: Look): THREE.Group {
     return m
   }
   const part = (geo: THREE.BufferGeometry, color: number, s: Vec, p: Vec, parent: THREE.Object3D = g): THREE.Mesh => {
-    const m = new THREE.Mesh(geo, mat(color))
+    const m = new THREE.Mesh(geo === SPHERE && Math.max(...s) < 0.1 ? SPHERE_SMALL : geo, mat(color))
     m.scale.set(...s)
     m.position.set(...p)
     m.castShadow = true
@@ -212,6 +215,7 @@ export function buildFigure(look: Look): THREE.Group {
 
   // Boca (se abre al asustarse) y "!" sobre la cabeza.
   const mouth = part(SPHERE, 0x5a1d1d, [0.025, 0.012, 0.05], [0.385, HEAD_Y - 0.12, 0])
+  mouth.userData.keep = true // se anima: no entra en la fusión
   const bang = new THREE.Group()
   bang.visible = false
   g.add(bang)
@@ -274,6 +278,8 @@ export function buildFigure(look: Look): THREE.Group {
     part(SPHERE, 0x111111, [0.02, 0.025, 0.028], [0.513, HEAD_Y + 0.015, side * 0.15], mask)
   }
 
+  // Una llamada de dibujo por pieza móvil (cuerpo, cada pierna y brazo, antifaz, signo) en vez de ~50 mallas sueltas.
+  for (const group of [g, mask, bang, ...LIMBS.get(g)?.legs ?? [], ...LIMBS.get(g)?.arms ?? []]) bakeChildren(group, 0.4)
   g.scale.setScalar(look.scale ?? 1)
   return g
 }

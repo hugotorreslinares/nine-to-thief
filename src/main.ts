@@ -4,6 +4,7 @@ import {
   CHAIRS, CHAIR_R, CHARACTERS, CONFERENCE, FURNITURE, LEVEL_SECONDS, MAP, OBJECTS, PATROL_ORDER, ROOMS, ROUTES, SPAWN, WALLS,
   COOP_EXTRA, awayCount, extraObjects, levelConfig, randomLayout, type Character, type LevelConfig, type OfficeObject,
 } from './data.ts'
+import { bakeChildren, mergeColored } from './bake.ts'
 import { LITE, TOUCH, TV } from './device.ts'
 import { buildFigure, loadModelFigure, reactFigure, setMask, swingLimbs } from './figure.ts'
 import { lang, setLang, t } from './i18n.ts'
@@ -178,7 +179,7 @@ function applyView(): void {
 
 function resize(): void {
   applyView()
-  renderer.setPixelRatio(LITE ? 1 : Math.min(devicePixelRatio, 2)) // la GPU de la tele no da para 1080p
+  renderer.setPixelRatio(LITE ? 1 : Math.min(devicePixelRatio, 1.5)) // la GPU de la tele no da para 1080p
   renderer.setSize(innerWidth, innerHeight, false)
 }
 addEventListener('resize', resize)
@@ -191,17 +192,18 @@ function lookAt(x: number, z: number): void {
 
 const UNIT_BOX = new THREE.BoxGeometry(1, 1, 1)
 
-function addBox(b: Box, h: number, color: number, y = 0): THREE.Mesh {
+// El mundo fijo (suelos, paredes, muebles) se arma pieza a pieza y se funde al final en dos mallas.
+const floorParts: THREE.Mesh[] = []
+const solidParts: THREE.Mesh[] = []
+
+function addBox(b: Box, h: number, color: number, y = 0, into: THREE.Mesh[] = solidParts): void {
   const mesh = new THREE.Mesh(UNIT_BOX, surface(color, 0.8))
   mesh.scale.set(b.maxX - b.minX, h, b.maxZ - b.minZ)
   mesh.position.set((b.minX + b.maxX) / 2, y + h / 2, (b.minZ + b.maxZ) / 2)
-  mesh.castShadow = true
-  mesh.receiveShadow = true
-  scene.add(mesh)
-  return mesh
+  into.push(mesh)
 }
 
-for (const room of ROOMS) addBox(room.box, 0.02, room.color, -0.02).castShadow = false
+for (const room of ROOMS) addBox(room.box, 0.02, room.color, -0.02, floorParts)
 for (const wall of WALLS) addBox(wall, WALL_H, 0xe8e4da)
 const UNIT_CYLINDER = new THREE.CylinderGeometry(0.5, 0.5, 1, LITE ? 8 : 16)
 
@@ -209,8 +211,7 @@ function addDetail(geo: THREE.BufferGeometry, color: number, size: readonly [num
   const mesh = new THREE.Mesh(geo, surface(color, 0.6))
   mesh.scale.set(...size)
   mesh.position.set(...at)
-  mesh.castShadow = true
-  scene.add(mesh)
+  solidParts.push(mesh)
 }
 
 for (const f of FURNITURE) {
@@ -238,6 +239,14 @@ for (const f of FURNITURE) {
     ? { minX: cx - w / 4 - 0.25, maxX: cx - w / 4 + 0.25, minZ: cz - 0.04, maxZ: cz + 0.04 }
     : { minX: cx - 0.04, maxX: cx + 0.04, minZ: cz - d / 4 - 0.25, maxZ: cz - d / 4 + 0.25 }
   addBox(screen, 0.38, 0x22252b, f.h)
+}
+
+for (const [parts, casts] of [[floorParts, false], [solidParts, true]] as const) {
+  const world = mergeColored(parts as THREE.Mesh<THREE.BufferGeometry, Surface>[], 0.8)
+  if (!world) continue
+  world.castShadow = casts
+  world.receiveShadow = true
+  scene.add(world)
 }
 
 // ---------- Estado ----------
@@ -283,6 +292,7 @@ function makeChair(at: Pt & { readonly dir: number }): THREE.Group {
   part(UNIT_CYLINDER, [0.07, 0.4, 0.07], [0, 0.25, 0])
   part(UNIT_BOX, [0.46, 0.08, 0.46], [0, 0.47, 0])
   part(UNIT_BOX, [0.07, 0.5, 0.44], [-0.21, 0.76, 0]) // espaldar: mira hacia +x
+  bakeChildren(g, 0.7)
   g.position.set(at.x, 0, at.z)
   g.rotation.y = -at.dir
   scene.add(g)
@@ -326,6 +336,7 @@ function buildItem(o: OfficeObject, extra = false): Item {
     piece.castShadow = true
     mesh.add(piece)
   }
+  bakeChildren(mesh, 0.5)
   const marker = new THREE.Mesh(MARKER_GEO, MARKER_MAT)
   marker.position.y = 1.1 / OBJECT_SCALE
   mesh.add(marker)
