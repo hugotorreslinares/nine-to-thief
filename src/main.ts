@@ -20,10 +20,16 @@ import { surface, type Surface } from './surface.ts'
 import { claimNick, cleanNick, fetchBoard, isTaken, loadNick, saveNick, submitScore } from './scores.ts'
 import { canSee, coopZoom, rayDistance, resolveCircle, turnToward, type Box, type Pt } from './logic.ts'
 
-const BASE_SPEED = 4.2
+const BASE_SPEED = 5
 const BASE_GRAB = 0.65
 const REACH = 1.5
 const PLAYER_R = 0.35
+const NPC_R = 0.3
+const NPC_GAP = 0.6
+/** Fracción del solape que cede el vigilante al ser empujado. */
+const PUSH_NPC = 0.7
+/** Velocidad con la que un vigilante empujado vuelve a su puesto. */
+const RETURN_SPEED = 1.5
 const VIEW = 15
 const VIEW_SHORT = 10
 /** Ancho mínimo visible en metros: en vertical la cámara se aleja para no quedar a ciegas. */
@@ -1726,6 +1732,16 @@ function updateNpc(n: Npc, dt: number): void {
   }
   let want = n.char.home.dir + Math.sin(clock * cfg.sweepSpeed + n.phase) * cfg.sweepAmp
   let walking = false
+  if (!n.route) {
+    const hx = n.char.home.x - n.x
+    const hz = n.char.home.z - n.z
+    const away = Math.hypot(hx, hz)
+    if (away > 0.02) {
+      const step = Math.min(away, RETURN_SPEED * dt)
+      n.x += (hx / away) * step
+      n.z += (hz / away) * step
+    }
+  }
   if (n.lureT > 0) {
     n.lureT -= dt
     want = Math.atan2(n.lure.z - n.z, n.lure.x - n.x)
@@ -1896,11 +1912,19 @@ function update(dt: number): void {
       const len = Math.hypot(mx, mz)
       const speed = BASE_SPEED * (p.char.speed ?? 1) * (p.dashT > 0 ? p.dashK : 1)
       let next = resolveCircle(p.x + (mx / len) * speed * dt, p.z + (mz / len) * speed * dt, PLAYER_R, SOLID)
+      // A los vigilantes se les puede empujar un poco: ceden la mayor parte y el jugador avanza más lento.
       for (const n of npcs) {
         const dx = next.x - n.x
         const dz = next.z - n.z
         const d = Math.hypot(dx, dz)
-        if (d > 1e-6 && d < 0.6) next = { x: n.x + (dx / d) * 0.6, z: n.z + (dz / d) * 0.6 }
+        if (d < 1e-6 || d >= NPC_GAP) continue
+        const overlap = NPC_GAP - d
+        const moved = resolveCircle(n.x - (dx / d) * overlap * PUSH_NPC, n.z - (dz / d) * overlap * PUSH_NPC, NPC_R, SOLID)
+        n.x = moved.x
+        n.z = moved.z
+        // Lo que el vigilante no pudo ceder (contra una pared o mueble) se lo queda el jugador.
+        const left = NPC_GAP - Math.hypot(next.x - n.x, next.z - n.z)
+        if (left > 0) next = { x: next.x + (dx / d) * left, z: next.z + (dz / d) * left }
       }
       // Los dos jugadores tampoco se atraviesan.
       for (const other of crew) {

@@ -355,7 +355,7 @@ export function levelConfig(n: number): LevelConfig {
     sweepSpeed: Math.min(0.5 + 0.08 * n, 1.1),
     sweepAmp: Math.min(0.5 + 0.1 * n, 1.2),
     patrols: Math.min(n - 1, 5),
-    walk: Math.min(1.2 + 0.12 * n, 2),
+    walk: Math.min(1.3 + 0.13 * n, 2.2),
   }
 }
 
