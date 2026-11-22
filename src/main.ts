@@ -635,6 +635,17 @@ function stopStealing(): void {
 
 // ---------- Interfaz ----------
 
+/** Aviso y barra de robo de un jugador: flotan sobre su cabeza. */
+function headHtml(i: number): string {
+  const color = i === 0 ? '#fde047' : '#67e8f9'
+  return `
+    <div id="head${i}" class="ink pointer-events-none absolute left-0 top-0 hidden flex-col items-center gap-1">
+      <div class="headPrompt animate-pulse rounded-lg border-2 border-black px-3 py-0.5 text-2xl text-black" style="background:${color}"></div>
+      <progress class="headGrab h-3 w-28" style="accent-color:${color}" max="1" value="0"></progress>
+      <div class="text-xl leading-none" style="color:${color}">▼</div>
+    </div>`
+}
+
 const ui = el<HTMLDivElement>('#ui')
 ui.innerHTML = `
   <div id="hud" class="hidden">
@@ -666,11 +677,7 @@ ui.innerHTML = `
       <div id="ability2Name" class="text-lg text-cyan-300"></div>
       <div id="ability2State" class="text-2xl"></div>
     </div>
-    <div class="ink absolute bottom-10 left-1/2 flex pointer-coarse:bottom-60 -translate-x-1/2 flex-col items-center gap-2">
-      <div id="prompt" class="text-2xl text-yellow-300"></div>
-      <progress id="grab" max="1" value="0" class="h-3 w-56 accent-yellow-400"></progress>
-      <progress id="grab2" max="1" value="0" class="h-3 w-56 accent-cyan-400"></progress>
-    </div>
+    ${headHtml(0)}${headHtml(1)}
     <div id="touch" class="hidden pointer-coarse:block">
       <div id="stick" class="pointer-events-auto absolute bottom-6 left-6 flex size-32 touch-none items-center justify-center rounded-full border-4 border-white/50 bg-black/30">
         <div id="knob" class="size-14 rounded-full bg-white/70"></div>
@@ -866,9 +873,11 @@ const dom = {
   timer: el<HTMLDivElement>('#timer'),
   abilityName: el<HTMLDivElement>('#abilityName'),
   abilityState: el<HTMLDivElement>('#abilityState'),
-  prompt: el<HTMLDivElement>('#prompt'),
-  grab: el<HTMLProgressElement>('#grab'),
-  grab2: el<HTMLProgressElement>('#grab2'),
+  heads: [0, 1].map((i) => ({
+    root: el<HTMLDivElement>('#head' + i),
+    prompt: el<HTMLDivElement>('#head' + i + ' .headPrompt'),
+    bar: el<HTMLProgressElement>('#head' + i + ' .headGrab'),
+  })),
   ability2Box: el<HTMLDivElement>('#ability2Box'),
   pauseBox: el<HTMLDivElement>('#pauseBox'),
   pauseTitle: el<HTMLDivElement>('#pauseTitle'),
@@ -2060,14 +2069,7 @@ function update(dt: number): void {
   }
   if (timeLeft <= 0) return bust(t('Se acabó el tiempo'), false)
 
-  const lead = plans[0]
-  const mate = plans[1]
-  dom.prompt.textContent = lead?.target ? pick('MANTÉN ROBAR', 'MANTÉN OK PARA ROBAR', 'MANTÉN E PARA ROBAR') : ''
-  dom.grab.value = Math.min(player.grab, 1)
-  dom.grab.classList.toggle('invisible', !lead?.grabbing)
-  dom.grab2.classList.toggle('hidden', !mate)
-  dom.grab2.value = mate ? Math.min(mate.p.grab, 1) : 0
-  dom.grab2.classList.toggle('invisible', !mate?.grabbing)
+  headInfo = plans.map(({ p, target, grabbing }) => ({ p, target, grabbing }))
 }
 
 /** Estado de la habilidad de un jugador: pasiva, usada, segundos de recarga o lista (con su botón). */
@@ -2130,6 +2132,40 @@ if (!connecting) renderMenu()
 let last = performance.now()
 let frameCount = 0
 
+/** Quién tiene un objeto a su alcance y si lo está robando: el aviso y la barra van sobre su cabeza. */
+let headInfo: readonly { readonly p: Player; readonly target: Item | undefined; readonly grabbing: boolean }[] = []
+const headPoint = new THREE.Vector3()
+const targetRings = [0, 1].map(() => {
+  const ring = new THREE.Mesh(new THREE.RingGeometry(0.28, 0.4, 24).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9, depthWrite: false }))
+  ring.visible = false
+  scene.add(ring)
+  return ring
+})
+
+function placeHeadUi(): void {
+  const prompt = pick('MANTÉN ROBAR', 'MANTÉN OK', 'MANTÉN E')
+  dom.heads.forEach((head, i) => {
+    const info = phase === 'playing' ? headInfo[i] : undefined
+    const ring = targetRings[i]
+    const show = info?.target !== undefined
+    head.root.classList.toggle('hidden', !show)
+    head.root.classList.toggle('flex', show)
+    if (ring) ring.visible = show
+    if (!info || !info.target) return
+    head.prompt.textContent = prompt
+    head.prompt.classList.toggle('hidden', info.grabbing)
+    head.bar.classList.toggle('hidden', !info.grabbing)
+    head.bar.value = Math.min(info.p.grab, 1)
+    headPoint.set(info.p.x, 2, info.p.z).project(camera)
+    head.root.style.transform = `translate(${((headPoint.x + 1) / 2) * innerWidth}px, ${((1 - headPoint.y) / 2) * innerHeight}px) translate(-50%, -100%)`
+    if (ring) {
+      ring.position.set(info.target.x, 0.06, info.target.z)
+      ring.scale.setScalar(1 + 0.25 * Math.sin(clock * 8))
+      ring.material.color.set(i === 0 ? 0xfde047 : 0x67e8f9)
+    }
+  })
+}
+
 function frame(now: number): void {
   const dt = Math.min((now - last) / 1000, 0.05)
   last = now
@@ -2188,6 +2224,8 @@ function frame(now: number): void {
     item.mesh.rotation.y += dt * 14
   }
   // El menú no necesita 60 fps: se dibuja a 30. Las sombras se actualizan en cuadros alternos.
+  camera.updateMatrixWorld()
+  placeHeadUi()
   frameCount++
   if (phase !== 'menu' || frameCount % 2 === 0) {
     renderer.shadowMap.needsUpdate = frameCount % 2 === 0
