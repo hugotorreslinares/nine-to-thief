@@ -5,7 +5,7 @@ import {
   COOP_EXTRA, awayCount, extraObjects, levelConfig, randomLayout, type Character, type LevelConfig, type OfficeObject,
 } from './data.ts'
 import { LITE, TOUCH, TV } from './device.ts'
-import { buildFigure, loadModelFigure, setMask, swingLimbs } from './figure.ts'
+import { buildFigure, loadModelFigure, reactFigure, setMask, swingLimbs } from './figure.ts'
 import { lang, setLang, t } from './i18n.ts'
 import { COUNTS, DEMO_COUNTS, LEVELS } from './levels.ts'
 import { FRESH, MAX_STARS, caught, steal, type Progress } from './progress.ts'
@@ -258,6 +258,8 @@ interface Npc {
   blindT: number
   blindK: number
   seenT: number
+  /** Sorpresa 0..1 al ver a alguien; anima la figura. */
+  alert: number
 }
 
 interface Chair {
@@ -372,7 +374,7 @@ const allNpcs: readonly Npc[] = CHARACTERS.filter((c) => !c.hero).map((char, i) 
   return {
     char, fig, cone: makeCone(), phase: i * 1.7,
     x: char.home.x, z: char.home.z, dir: char.home.dir,
-    route: undefined, wp: 0, lure: CONFERENCE, lureT: 0, freezeT: 0, blindT: 0, blindK: 1, seenT: 0,
+    route: undefined, wp: 0, lure: CONFERENCE, lureT: 0, freezeT: 0, blindT: 0, blindK: 1, seenT: 0, alert: 0,
   }
 })
 
@@ -1319,7 +1321,7 @@ function startLevel(): void {
     const start = route?.[0] ?? npc.char.home
     Object.assign(npc, {
       x: start.x, z: start.z, dir: npc.char.home.dir, route, wp: 1,
-      lureT: 0, freezeT: 0, blindT: 0, seenT: 0,
+      lureT: 0, freezeT: 0, blindT: 0, seenT: 0, alert: 0,
     })
     npc.cone.visible = npcs.includes(npc)
     npc.fig.visible = !away.has(npc)
@@ -1949,6 +1951,8 @@ function update(dt: number): void {
       sfx.spot()
       navigator.vibrate?.(60)
     }
+    n.alert += ((sawAny ? 1 : 0) - n.alert) * Math.min(1, dt * 10)
+    reactFigure(n.fig, n.alert, clock)
     updateCone(n, range)
     n.seenT = grabber ? n.seenT + dt : 0
     n.cone.material.color.set(sawAny ? (grabber ? CONE.alert : CONE.inside) : CONE.idle)

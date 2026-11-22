@@ -3,6 +3,8 @@ import { box, type Box, type Pt } from './logic.ts'
 
 export type Hair = 'short' | 'bald' | 'balding' | 'long' | 'bun' | 'curly'
 
+export type Gear = 'headset' | 'cap' | 'lanyard' | 'scarf' | 'earrings' | 'bowtie'
+
 export interface Look {
   readonly skin: number
   readonly hair: number
@@ -16,6 +18,8 @@ export interface Look {
   readonly skirt?: boolean
   readonly scale?: number
   readonly wide?: number
+  /** Accesorios sueltos: auriculares, gorra, credencial, bufanda, aretes o moño. */
+  readonly gear?: readonly Gear[]
   /** Lleva un engrapador en una mano y una carpeta bajo el otro brazo. */
   readonly loot?: boolean
 }
@@ -65,82 +69,82 @@ export const CHARACTERS: readonly Character[] = [
   },
   {
     id: 'bea', name: 'Bea', home: { x: 6, z: 1.1, dir: S }, desk: [6, 2.2, 2.4, 1.2],
-    look: { skin: 0xd9a87c, hair: 0xb8b8c0, hairStyle: 'long', top: 0x5b2a86, bottom: 0x2b2b35, skirt: true },
+    look: { skin: 0xd9a87c, hair: 0xb8b8c0, hairStyle: 'long', top: 0x5b2a86, bottom: 0x2b2b35, skirt: true, gear: ['earrings'] },
     ability: { name: '¡Junta de emergencia!', text: 'Todos miran hacia la sala de reuniones 4 s.', cooldown: 18, effect: { kind: 'lure', radius: 10, seconds: 4, at: 'conference' } },
   },
   {
     id: 'marco', name: 'Marco', home: { x: 10.1, z: 10.2, dir: -S }, desk: desk(10.1, 9.2),
-    look: { skin: 0xc98f64, hair: 0x1a1612, hairStyle: 'short', top: 0x2f7d6d, bottom: 0x3a3f4a, tie: 0xf2c14e, beard: true },
+    look: { skin: 0xc98f64, hair: 0x1a1612, hairStyle: 'short', top: 0x2f7d6d, bottom: 0x3a3f4a, tie: 0xf2c14e, beard: true, gear: ['lanyard'] },
     ability: { name: 'Café doble', text: 'Corre 80 % más rápido durante 3 s.', cooldown: 14, effect: { kind: 'dash', seconds: 3, factor: 1.8 } },
   },
   {
     id: 'teo', name: 'Teo', home: { x: 10.1, z: 7.2, dir: S }, desk: desk(10.1, 8.2),
-    look: { skin: SKIN, hair: 0xc47a3a, hairStyle: 'short', top: 0x7fb2e5, bottom: 0x2e3a52, scale: 1.08 },
+    look: { skin: SKIN, hair: 0xc47a3a, hairStyle: 'short', top: 0x7fb2e5, bottom: 0x2e3a52, scale: 1.08, gear: ['headset'] },
     ability: { name: 'Chiste malo', text: 'Congela a los que están cerca 3,5 s.', cooldown: 18, effect: { kind: 'freeze', radius: 6, seconds: 3.5 } },
   },
   {
     id: 'lucia', name: 'Lucía', home: { x: 3.6, z: 10.2, dir: -S }, desk: [3.6, 9.2, 2.6, 1],
-    look: { skin: 0xb9825a, hair: 0x2a1a14, hairStyle: 'long', top: 0xf28ab2, bottom: 0x5a4a6a, skirt: true },
+    look: { skin: 0xb9825a, hair: 0x2a1a14, hairStyle: 'long', top: 0xf28ab2, bottom: 0x5a4a6a, skirt: true, gear: ['earrings', 'lanyard'] },
     grabTime: 0.6,
     ability: { name: 'Manos ágiles', text: 'Pasiva: roba 40 % más rápido.' },
   },
   {
     id: 'omar', name: 'Omar', home: { x: 32.8, z: 11.6, dir: -S }, desk: desk(32.8, 10.6),
-    look: { skin: 0x8d5a3b, hair: 0x15110f, hairStyle: 'short', top: 0x22252b, bottom: 0x22252b, tie: 0x4cc9f0, glasses: true },
+    look: { skin: 0x8d5a3b, hair: 0x15110f, hairStyle: 'short', top: 0x22252b, bottom: 0x22252b, tie: 0x4cc9f0, glasses: true, gear: ['lanyard'] },
     ability: { name: 'Notificación masiva', text: 'Toda la oficina mira el celular: ven la mitad 3,5 s.', cooldown: 20, effect: { kind: 'blind', radius: Infinity, seconds: 3.5, factor: 0.5 } },
   },
   {
     id: 'sara', name: 'Sara', home: { x: 32.8, z: 8.6, dir: S }, desk: desk(32.8, 9.6),
-    look: { skin: SKIN, hair: 0xd1495b, hairStyle: 'bun', top: 0xffc857, bottom: 0x6b4f1d, skirt: true, scale: 0.92 },
+    look: { skin: SKIN, hair: 0xd1495b, hairStyle: 'bun', top: 0xffc857, bottom: 0x6b4f1d, skirt: true, scale: 0.92, gear: ['headset'] },
     ability: { name: 'Rumor de pasillo', text: 'Los cercanos miran donde soltó el chisme 4 s.', cooldown: 15, effect: { kind: 'lure', radius: 8, seconds: 4, at: 'self' } },
   },
   {
     id: 'felix', name: 'Félix', home: { x: 36, z: 16.5, dir: -S }, desk: desk(36, 15.5),
-    look: { skin: 0xe0b48a, hair: 0x7a6a50, hairStyle: 'balding', top: 0x8a8f99, bottom: 0x555a64, tie: 0x6b7280 },
+    look: { skin: 0xe0b48a, hair: 0x7a6a50, hairStyle: 'balding', top: 0x8a8f99, bottom: 0x555a64, tie: 0x6b7280, gear: ['lanyard'] },
     grace: 0.7,
     ability: { name: 'Invisible por costumbre', text: 'Pasiva: tardan 0,7 s en notar que roba.' },
   },
   {
     id: 'elsa', name: 'Elsa', home: { x: 2.6, z: 12.2, dir: S }, desk: desk(2.6, 13.2),
-    look: { skin: 0xd8a47f, hair: 0xece7dc, hairStyle: 'short', top: 0x2d6a4f, bottom: 0x3d405b, skirt: true, glasses: true, scale: 0.88 },
+    look: { skin: 0xd8a47f, hair: 0xece7dc, hairStyle: 'short', top: 0x2d6a4f, bottom: 0x3d405b, skirt: true, glasses: true, scale: 0.88, gear: ['scarf'] },
     visibility: 0.75,
     ability: { name: 'Bajo perfil', text: 'Pasiva: la ven 25 % menos lejos.' },
   },
   {
     id: 'pablo', name: 'Pablo', home: { x: 2.6, z: 15.2, dir: -S }, desk: desk(2.6, 14.2),
-    look: { skin: 0xc99a72, hair: 0x1a1614, hairStyle: 'short', top: 0x6d597a, bottom: 0x3b3b44, tie: 0x2a9d8f, glasses: true },
+    look: { skin: 0xc99a72, hair: 0x1a1614, hairStyle: 'short', top: 0x6d597a, bottom: 0x3b3b44, tie: 0x2a9d8f, glasses: true, gear: ['headset'] },
     ability: { name: 'Dato curioso', text: 'Una vez por nivel: +10 s de tiempo.', cooldown: 999, effect: { kind: 'time', seconds: 10 } },
   },
   {
     id: 'dani', name: 'Dani', home: { x: 5.3, z: 13.7, dir: Math.PI }, desk: [4.2, 13.7, 1, 1.8],
-    look: { skin: SKIN, hair: 0xc2410c, hairStyle: 'short', top: 0x8ecae6, bottom: 0x3b3b3b, tie: 0x264653, wide: 1.35 },
+    look: { skin: SKIN, hair: 0xc2410c, hairStyle: 'short', top: 0x8ecae6, bottom: 0x3b3b3b, tie: 0x264653, wide: 1.35, gear: ['cap'] },
     speed: 0.85,
     ability: { name: 'Café derramado', text: 'Los cercanos miran el piso: ven 60 % menos 5 s. Es lento.', cooldown: 18, effect: { kind: 'blind', radius: 7, seconds: 5, factor: 0.4 } },
   },
   {
     id: 'ramon', name: 'Ramón', home: { x: 14.2, z: 7.2, dir: S }, desk: desk(14.2, 8.2),
-    look: { skin: 0xe0b48a, hair: 0x2b2b2b, hairStyle: 'bald', top: 0xb5651d, bottom: 0x4a4036, beard: true, wide: 1.25 },
+    look: { skin: 0xe0b48a, hair: 0x2b2b2b, hairStyle: 'bald', top: 0xb5651d, bottom: 0x4a4036, beard: true, wide: 1.25, gear: ['bowtie'] },
     ability: { name: 'Silencio incómodo', text: 'Congela a toda la oficina 2 s.', cooldown: 25, effect: { kind: 'freeze', radius: Infinity, seconds: 2 } },
   },
   {
     id: 'clara', name: 'Clara', home: { x: 14.2, z: 10.2, dir: -S }, desk: desk(14.2, 9.2),
-    look: { skin: SKIN, hair: 0xc9c9d1, hairStyle: 'curly', top: 0x2a9d8f, bottom: 0x5a4a6a, skirt: true, wide: 1.25 },
+    look: { skin: SKIN, hair: 0xc9c9d1, hairStyle: 'curly', top: 0x2a9d8f, bottom: 0x5a4a6a, skirt: true, wide: 1.25, gear: ['earrings', 'scarf'] },
     visibility: 0.85, grabTime: 0.8,
     ability: { name: 'Cara de buena persona', text: 'Pasiva: la ven 15 % menos lejos y roba 20 % más rápido.' },
   },
   {
     id: 'nacho', name: 'Nacho', home: { x: 9.2, z: 14, dir: S }, desk: desk(9.2, 15),
-    look: { skin: 0xb98a62, hair: 0xd0d0d0, hairStyle: 'balding', top: 0x445566, bottom: 0x444444, tie: 0x111111 },
+    look: { skin: 0xb98a62, hair: 0xd0d0d0, hairStyle: 'balding', top: 0x445566, bottom: 0x444444, tie: 0x111111, gear: ['lanyard'] },
     ability: { name: 'Estornudo', text: 'Congela a los cercanos 2,5 s.', cooldown: 12, effect: { kind: 'freeze', radius: 4, seconds: 2.5 } },
   },
   {
     id: 'rita', name: 'Rita', home: { x: 11, z: 16, dir: -S }, desk: desk(11, 15),
-    look: { skin: SKIN, hair: 0x3d2b1f, hairStyle: 'long', top: 0x06d6a0, bottom: 0x333333, skirt: true },
+    look: { skin: SKIN, hair: 0x3d2b1f, hairStyle: 'long', top: 0x06d6a0, bottom: 0x333333, skirt: true, gear: ['headset'] },
     ability: { name: 'Hora feliz', text: 'Corre 45 % más rápido durante 5 s.', cooldown: 16, effect: { kind: 'dash', seconds: 5, factor: 1.45 } },
   },
   {
     id: 'ivan', name: 'Iván', home: { x: 8.3, z: 7.2, dir: S }, desk: desk(8.3, 8.2),
-    look: { skin: SKIN, hair: 0x1d3557, hairStyle: 'short', top: 0xff7f50, bottom: 0x1d3557, tie: 0xffd166 },
+    look: { skin: SKIN, hair: 0x1d3557, hairStyle: 'short', top: 0xff7f50, bottom: 0x1d3557, tie: 0xffd166, gear: ['lanyard'] },
     ability: { name: 'Karaoke de oficina', text: 'Los cercanos miran donde cantó 3 s. Recarga corta.', cooldown: 10, effect: { kind: 'lure', radius: 10, seconds: 3, at: 'self' } },
   },
 ]

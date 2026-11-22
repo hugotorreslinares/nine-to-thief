@@ -16,6 +16,8 @@ const LENS = new THREE.TorusGeometry(0.09, 0.015, LITE ? 3 : 6, RADIAL).rotateY(
 // Corona de pelo centrada en la nuca (-x).
 const CROWN = new THREE.TorusGeometry(0.34, 0.1, LITE ? 4 : 8, RADIAL, Math.PI * 1.2).rotateZ(Math.PI * 0.4).rotateX(Math.PI / 2)
 
+const HEADSET_ARC = new THREE.TorusGeometry(0.45, 0.02, LITE ? 3 : 6, RADIAL, Math.PI).rotateY(Math.PI / 2)
+
 const HEAD_Y = 1.18
 const HIP_Y = 0.36
 const SHOULDER_Y = 0.76
@@ -30,6 +32,12 @@ interface Limbs {
 }
 const LIMBS = new WeakMap<THREE.Group, Limbs>()
 const MASKS = new WeakMap<THREE.Group, THREE.Group>()
+/** Boca y signo de exclamación de las figuras de piezas, para la reacción al ver a un ladrón. */
+interface Reaction {
+  readonly mouth: THREE.Mesh
+  readonly bang: THREE.Group
+}
+const REACTIONS = new WeakMap<THREE.Group, Reaction>()
 // Banda del antifaz: aro tumbado alrededor de la cabeza, para que se vea también de espaldas.
 const BAND = new THREE.TorusGeometry(0.41, 0.075, LITE ? 4 : 8, LITE ? 12 : 24).rotateX(Math.PI / 2)
 const MASK = 0x16161a
@@ -97,6 +105,17 @@ export function swingLimbs(fig: THREE.Group, angle: number): void {
   limbs.legs[1].rotation.z = -angle
   limbs.arms[0].rotation.z = -angle * 0.8
   limbs.arms[1].rotation.z = angle * 0.8
+}
+
+/** Sorpresa de 0 (nada) a 1 (alarmado): abre la boca, levanta los brazos y muestra un "!" que rebota. No afecta a los modelos 3D. */
+export function reactFigure(fig: THREE.Group, k: number, clock: number): void {
+  const reaction = REACTIONS.get(fig)
+  const limbs = LIMBS.get(fig)
+  if (!reaction || !limbs) return
+  reaction.mouth.scale.y = 0.012 + 0.05 * k
+  reaction.bang.visible = k > 0.3
+  reaction.bang.position.y = HEAD_Y + 0.62 + Math.abs(Math.sin(clock * 9)) * 0.06
+  if (k > 0.01) for (const arm of limbs.arms) arm.rotation.z = 2.3 * k + Math.sin(clock * 20) * 0.1 * k
 }
 
 /** Figura cabezona tipo vinilo, ~1,55 m, mirando hacia +x. */
@@ -190,6 +209,36 @@ export function buildFigure(look: Look): THREE.Group {
   if (look.glasses) part(BOX, 0x222222, [0.015, 0.015, 0.12], [0.415, HEAD_Y + 0.03, 0])
   if (look.mustache) part(BOX, look.hair, [0.04, 0.05, 0.22], [0.385, HEAD_Y - 0.13, 0])
   if (look.beard) part(SPHERE, look.hair, [0.2, 0.16, 0.26], [0.2, HEAD_Y - 0.24, 0])
+
+  // Boca (se abre al asustarse) y "!" sobre la cabeza.
+  const mouth = part(SPHERE, 0x5a1d1d, [0.025, 0.012, 0.05], [0.385, HEAD_Y - 0.12, 0])
+  const bang = new THREE.Group()
+  bang.visible = false
+  g.add(bang)
+  part(BOX, 0xff3b30, [0.07, 0.2, 0.07], [0, 0.07, 0], bang)
+  part(SPHERE, 0xff3b30, [0.05, 0.05, 0.05], [0, -0.08, 0], bang)
+  REACTIONS.set(g, { mouth, bang })
+
+  // Accesorios
+  for (const item of look.gear ?? []) {
+    if (item === 'earrings') for (const side of [1, -1]) part(SPHERE, 0xd4af37, [0.025, 0.04, 0.025], [-0.02, HEAD_Y - 0.12, side * 0.42])
+    else if (item === 'lanyard') {
+      for (const side of [1, -1]) part(BOX, 0xd62828, [0.02, 0.4, 0.03], [chest + 0.02, 0.64, side * 0.08]).rotation.x = side * 0.18
+      part(BOX, 0xffffff, [0.02, 0.12, 0.09], [chest + 0.03, 0.43, 0])
+    } else if (item === 'headset') {
+      part(HEADSET_ARC, 0x2b2b30, [1, 1, 1], [0, HEAD_Y, 0])
+      for (const side of [1, -1]) part(BOX, 0x2b2b30, [0.07, 0.15, 0.1], [-0.02, HEAD_Y, side * 0.45])
+    } else if (item === 'cap') {
+      part(CAP, 0x1d4ed8, [0.43, 0.43, 0.44], [-0.02, HEAD_Y + 0.06, 0])
+      part(BOX, 0x1d4ed8, [0.22, 0.025, 0.34], [0.4, HEAD_Y + 0.17, 0])
+    } else if (item === 'scarf') {
+      part(CYLINDER, 0xe11d48, [0.17, 0.07, 0.17], [0, 0.82, 0])
+      part(BOX, 0xe11d48, [0.04, 0.28, 0.09], [chest + 0.03, 0.64, 0.09])
+    } else {
+      for (const side of [1, -1]) part(BOX, 0xe11d48, [0.03, 0.06, 0.07], [chest + 0.02, 0.78, side * 0.06]).rotation.x = side * 0.5
+      part(SPHERE, 0xe11d48, [0.025, 0.025, 0.025], [chest + 0.03, 0.78, 0])
+    }
+  }
 
   // Pelo
   const style = look.hairStyle
