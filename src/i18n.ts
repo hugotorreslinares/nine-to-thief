@@ -152,6 +152,8 @@ export const EN: Readonly<Record<string, string>> = {
   'Elige una valoración de 1 a 5 estrellas': 'Pick a rating from 1 to 5 stars',
   '✓ ¡Gracias por tu opinión!': '✓ Thanks for your feedback!',
   'SILENCIO': 'MUTE',
+  '📅 Reunión: varios se fueron a la sala. ¡Aprovecha!': '📅 Meeting: several people left for the meeting room. Make your move!',
+  '⚡ Apagón: casi no ven. ¡Aprovecha!': '⚡ Blackout: they can barely see. Make your move!',
   '🔇 SIN SONIDO': '🔇 MUTED',
   '🔊 SONIDO': '🔊 SOUND',
   'Demasiados mensajes, prueba más tarde': 'Too many messages, try again later',

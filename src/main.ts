@@ -529,6 +529,7 @@ const sfx = {
   pick: (): void => { tone(880, 0, 0.08, 'sine', 0.12); tone(1320, 0.08, 0.12, 'sine', 0.12) },
   win: (): void => { [523, 659, 784, 1047].forEach((f, i) => tone(f, i * 0.13, 0.18, 'triangle', 0.12)) },
   ability: (): void => tone(330, 0, 0.15, 'sawtooth', 0.06),
+  spot: (): void => { tone(1100, 0, 0.07, 'square', 0.09); tone(1100, 0.1, 0.07, 'square', 0.09) },
 }
 
 /** Volumen de la música de suspenso; se crea al primer robo y queda sonando en silencio. */
@@ -1292,6 +1293,9 @@ function startLevel(): void {
     padSeen[p.slot] = false
   }
   pauseT = 0
+  inMeeting = []
+  seeing.clear()
+  eventAt = level >= EVENT_FROM_LEVEL ? 12 + Math.random() * 30 : Infinity
   const plays = (c: Character): boolean => crew.some((p) => p.char === c)
 
   const patrollers = PATROL_ORDER.filter((id) => !crew.some((p) => p.char.id === id)).slice(0, cfg.patrols)
@@ -1379,6 +1383,9 @@ function win(): void {
     bestLevel = level
     bestSeconds = Math.min(99, Math.max(0, spare))
   }
+  shot = undefined // se comparte el avance, no la foto de fichaje de una captura anterior
+  dom.shareBtn.textContent = t('COMPARTIR')
+  dom.shareBtn.classList.remove('hidden')
   const more = pick('Toca para seguir', 'OK: siguiente nivel', 'ENTER: siguiente nivel')
   const back = pick('Toca para volver al menú', 'OK: volver al menú', 'ENTER: volver al menú')
   if (!finished()) showBanner('MISSION PASSED!', 'text-yellow-300', t('Nivel {level} superado con {s} s de sobra', { level, s: spare }), more)
@@ -1760,9 +1767,48 @@ function completeItem(target: Item): boolean {
   return commitSteal(target)
 }
 
+// Eventos: una vez por nivel (desde el 3) pasa algo en la oficina.
+const EVENT_FROM_LEVEL = 3
+const MEETING_SECONDS = 12
+let eventAt = Infinity
+let meetingEnd = 0
+let inMeeting: Npc[] = []
+/** Vigilantes que ya ven a alguien: el aviso suena al empezar a verlo, no en cada cuadro. */
+const seeing = new Set<Npc>()
+
+function endMeeting(): void {
+  for (const n of inMeeting) {
+    n.fig.visible = true
+    n.cone.visible = true
+  }
+  npcs = [...npcs, ...inMeeting]
+  inMeeting = []
+}
+
+function runEvent(): void {
+  if (inMeeting.length > 0 && clock >= meetingEnd) endMeeting()
+  if (LEVEL_SECONDS - timeLeft < eventAt) return
+  eventAt = Infinity
+  if (Math.random() < 0.5) {
+    inMeeting = npcs.filter((n) => !n.route).slice(0, Math.floor(npcs.length / 2))
+    if (inMeeting.length === 0) return
+    for (const n of inMeeting) {
+      n.fig.visible = false
+      n.cone.visible = false
+    }
+    npcs = npcs.filter((n) => !inMeeting.includes(n))
+    meetingEnd = clock + MEETING_SECONDS
+    notify(t('📅 Reunión: varios se fueron a la sala. ¡Aprovecha!'))
+  } else {
+    for (const n of npcs) Object.assign(n, { blindT: 8, blindK: 0.35 })
+    notify(t('⚡ Apagón: casi no ven. ¡Aprovecha!'))
+  }
+}
+
 function update(dt: number): void {
   clock += dt
   timeLeft -= dt
+  runEvent()
   for (const item of items) item.marker.rotateY(dt * 3)
 
   // Cada jugador elige el objeto que tiene a mano, decide si roba y se mueve.
@@ -1859,6 +1905,12 @@ function update(dt: number): void {
       sawAny = true
       spotted.add(p)
       if (grabbing) grabber ??= p
+    }
+    if (!sawAny) seeing.delete(n)
+    else if (!seeing.has(n)) {
+      seeing.add(n)
+      sfx.spot()
+      navigator.vibrate?.(60)
     }
     updateCone(n, range)
     n.seenT = grabber ? n.seenT + dt : 0
