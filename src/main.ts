@@ -2,9 +2,10 @@ import * as THREE from 'three'
 import './style.css'
 import {
   CHAIRS, CHAIR_R, CHARACTERS, CONFERENCE, FURNITURE, LEVEL_SECONDS, MAP, OBJECTS, PATROL_ORDER, ROOMS, ROUTES, SPAWN, WALLS,
-  COOP_EXTRA, awayCount, extraObjects, levelConfig, randomLayout, type Character, type LevelConfig, type OfficeObject,
+  COOP_EXTRA, awayCount, extraObjects, levelConfig, randomLayout, type Character, type Furniture, type LevelConfig, type OfficeObject,
 } from './data.ts'
 import { bakeChildren, mergeColored } from './bake.ts'
+import { loadClears, markCleared } from './clears.ts'
 import { LITE, TOUCH, TV } from './device.ts'
 import { buildFigure, loadModelFigure, reactFigure, setMask, swingLimbs } from './figure.ts'
 import { lang, setLang, t } from './i18n.ts'
@@ -98,7 +99,9 @@ const RAYS = 20
 const WALL_H = 1.2
 const CONE = { idle: 0xffe066, inside: 0xff9f1a, alert: 0xff2d2d } as const
 
-const SOLID: readonly Box[] = [...WALLS, ...FURNITURE.map((f) => f.box)]
+/** Muebles que el jugador puede empujar como las sillas: plantas y el dispensador de agua. */
+const isPushable = (f: Furniture): boolean => f.kind === 'plant' || f.kind === 'cooler'
+const SOLID: readonly Box[] = [...WALLS, ...FURNITURE.filter((f) => !isPushable(f)).map((f) => f.box)]
 const SIGHT: readonly Box[] = [...WALLS, ...FURNITURE.filter((f) => f.sight).map((f) => f.box)]
 
 function el<T extends Element>(selector: string): T {
@@ -222,6 +225,7 @@ function addDetail(geo: THREE.BufferGeometry, color: number, size: readonly [num
 }
 
 for (const f of FURNITURE) {
+  if (isPushable(f)) continue
   addBox(f.box, f.h, f.color)
   const fx = (f.box.minX + f.box.maxX) / 2
   const fz = (f.box.minZ + f.box.maxZ) / 2
@@ -280,6 +284,7 @@ interface Npc {
 
 interface Chair {
   readonly home: Pt
+  readonly radius: number
   readonly mesh: THREE.Group
   x: number
   z: number
@@ -306,8 +311,33 @@ function makeChair(at: Pt & { readonly dir: number }): THREE.Group {
   return g
 }
 
-const chairs: readonly Chair[] = CHAIRS.map((c) => ({ home: c, mesh: makeChair(c), x: c.x, z: c.z }))
-const CHAIR_GAP = PLAYER_R + CHAIR_R
+/** Planta o dispensador que se mueve al empujarlo: mismo trato que una silla. */
+function makeProp(f: Furniture): Chair {
+  const g = new THREE.Group()
+  const piece = (geo: THREE.BufferGeometry, color: number, size: readonly [number, number, number], at: readonly [number, number, number]): void => {
+    const mesh = new THREE.Mesh(geo, surface(color, 0.8))
+    mesh.scale.set(...size)
+    mesh.position.set(...at)
+    g.add(mesh)
+  }
+  const w = f.box.maxX - f.box.minX
+  const d = f.box.maxZ - f.box.minZ
+  piece(UNIT_BOX, f.color, [w, f.h, d], [0, f.h / 2, 0])
+  if (f.kind === 'plant') {
+    piece(UNIT_CYLINDER, 0x5a3a22, [0.06, 0.4, 0.06], [0, f.h + 0.2, 0])
+    piece(new THREE.IcosahedronGeometry(0.5, 0), 0x2f8f4e, [0.9, 1.1, 0.9], [0, f.h + 0.75, 0])
+  } else piece(UNIT_CYLINDER, 0x6ec6ff, [0.34, 0.45, 0.34], [0, f.h + 0.225, 0])
+  bakeChildren(g, 0.8)
+  const home = { x: (f.box.minX + f.box.maxX) / 2, z: (f.box.minZ + f.box.maxZ) / 2 }
+  g.position.set(home.x, 0, home.z)
+  scene.add(g)
+  return { home, radius: Math.max(w, d) / 2, mesh: g, ...home }
+}
+
+const chairs: readonly Chair[] = [
+  ...CHAIRS.map((c) => ({ home: c, radius: CHAIR_R, mesh: makeChair(c), x: c.x, z: c.z })),
+  ...FURNITURE.filter(isPushable).map(makeProp),
+]
 
 /** Objeto robable en su sitio fijo de la oficina. */
 interface Item {
@@ -695,6 +725,7 @@ ui.innerHTML = `
       <span class="max-w-48 text-left"><span class="padText"></span><br /><b class="padCode text-lg tracking-widest"></b></span>
     </div>
     <p id="account" class="ink text-center text-lg text-emerald-400 md:text-2xl"></p>
+    <p id="clears" class="ink hidden text-center text-base text-sky-300 md:text-xl"></p>
     <p id="challenge" class="ink hidden text-center text-lg text-pink-400 md:text-2xl"></p>
     <div class="flex flex-wrap items-center justify-center gap-2">
       <button id="waitBtn" class="ink cursor-pointer rounded-lg border-2 border-black bg-pink-500 px-4 py-2 text-lg">${t('🔔 QUIERO MI ART TOY')}</button>
@@ -790,6 +821,7 @@ const dom = {
   fbSend: el<HTMLButtonElement>('#fbSend'),
   fbClose: el<HTMLButtonElement>('#fbClose'),
   langBtn: el<HTMLButtonElement>('#langBtn'),
+  clears: el<HTMLParagraphElement>('#clears'),
   throwBtn: el<HTMLButtonElement>('#throwBtn'),
   hintArrow: el<HTMLDivElement>('#hintArrow'),
   muteBtn: el<HTMLButtonElement>('#muteBtn'),
@@ -864,7 +896,17 @@ function pickTag(id: string): string {
   return `<span class="ml-auto self-start rounded px-2 text-sm font-bold text-black" style="background:${slot === 0 ? '#39ff88' : '#4dd2ff'}">J${slot + 1}</span>`
 }
 
+let clears = loadClears()
+
+function clearsText(): string {
+  const list = (levels: readonly number[]): string => (levels.length > 0 ? levels.join(' ') : '—')
+  const line = `👤 ${t('Solo')}: ${list(clears.solo)} · 👥 ${t('De a dos')}: ${list(clears.duo)}`
+  return clears.solo.length > 0 && clears.duo.length === 0 ? `${line} · ${t('¡pruébalo de a dos!')}` : line
+}
+
 function renderMenu(): void {
+  dom.clears.textContent = clearsText()
+  dom.clears.classList.toggle('hidden', clears.solo.length + clears.duo.length === 0)
   // textContent: el nombre lo escribió el jugador.
   dom.account.textContent = account
     ? `${account.name} · ${finished() ? t('OFICINA VACÍA') : t('NIVEL {n}', { n: progress.level })} · ${starsText()}`
@@ -1408,6 +1450,7 @@ function bust(reason: string, captured: boolean, culprit: Player = player): void
 
 function win(): void {
   phase = 'won'
+  clears = markCleared(clears, level, crew.length > 1)
   sfx.win()
   const spare = Math.ceil(timeLeft)
   if (level >= bestLevel) {
@@ -1939,8 +1982,9 @@ function update(dt: number): void {
         let dx = chair.x - next.x
         let dz = chair.z - next.z
         let d = Math.hypot(dx, dz)
-        if (d >= CHAIR_GAP || d < 1e-6) continue
-        const pushed = resolveCircle(next.x + (dx / d) * CHAIR_GAP, next.z + (dz / d) * CHAIR_GAP, CHAIR_R, SOLID)
+        const gap = PLAYER_R + chair.radius
+        if (d >= gap || d < 1e-6) continue
+        const pushed = resolveCircle(next.x + (dx / d) * gap, next.z + (dz / d) * gap, chair.radius, SOLID)
         chair.x = pushed.x
         chair.z = pushed.z
         chair.mesh.position.set(chair.x, 0, chair.z)
@@ -1948,7 +1992,7 @@ function update(dt: number): void {
         dx = chair.x - next.x
         dz = chair.z - next.z
         d = Math.hypot(dx, dz)
-        if (d > 1e-6 && d < CHAIR_GAP) next = { x: chair.x - (dx / d) * CHAIR_GAP, z: chair.z - (dz / d) * CHAIR_GAP }
+        if (d > 1e-6 && d < gap) next = { x: chair.x - (dx / d) * gap, z: chair.z - (dz / d) * gap }
       }
       p.x = next.x
       p.z = next.z
