@@ -72,6 +72,7 @@ function legendHtml(): string {
     item(key('E'), t('ROBAR (mantén)')),
     item(key('Q'), t('HABILIDAD')),
     item(key('Z'), t('ZOOM')),
+    item(key('F'), t('LANZAR')),
     item(key('M'), t('SILENCIO')),
     item(key('Esc'), t('MENÚ')),
   ].join('')
@@ -534,6 +535,7 @@ const sfx = {
 
 /** Volumen de la música de suspenso; se crea al primer robo y queda sonando en silencio. */
 let suspense: GainNode | undefined
+let pulseRate: AudioParam | undefined
 
 /** Bajo que alterna dos notas a un semitono, con pulso. Suena solo mientras se roba. */
 function makeSuspense(ctx: AudioContext): GainNode {
@@ -543,7 +545,7 @@ function makeSuspense(ctx: AudioContext): GainNode {
   const pulse = ctx.createGain()
   pulse.gain.value = 0.5
   pulse.connect(master)
-  const lfo = (type: OscillatorType, hz: number, depth: number, target: AudioParam): void => {
+  const lfo = (type: OscillatorType, hz: number, depth: number, target: AudioParam): OscillatorNode => {
     const osc = ctx.createOscillator()
     const amount = ctx.createGain()
     osc.type = type
@@ -551,8 +553,9 @@ function makeSuspense(ctx: AudioContext): GainNode {
     amount.gain.value = depth
     osc.connect(amount).connect(target)
     osc.start()
+    return osc
   }
-  lfo('sine', 6, 0.5, pulse.gain) // pulso
+  pulseRate = lfo('sine', 6, 0.5, pulse.gain).frequency // pulso: se acelera al acabarse el tiempo
   for (const [type, hz, volume] of [['triangle', 84.86, 1], ['sawtooth', 169.72, 0.12]] as const) {
     const voice = ctx.createOscillator()
     const level = ctx.createGain()
@@ -585,6 +588,7 @@ function stopStealing(): void {
 const ui = el<HTMLDivElement>('#ui')
 ui.innerHTML = `
   <div id="hud" class="hidden">
+    <div id="hintArrow" class="ink pointer-events-none absolute z-10 hidden text-4xl text-yellow-300">▲</div>
     <div class="ink absolute top-3 left-3 text-base md:top-4 md:left-4 md:text-2xl">
       <div id="mission" class="text-yellow-300"></div>
       <div id="count" class="text-2xl md:text-4xl"></div>
@@ -593,6 +597,7 @@ ui.innerHTML = `
       <div id="stars" class="text-xl text-yellow-400 md:text-3xl"></div>
       <div id="timer" class="text-4xl md:text-6xl"></div>
       <div class="flex gap-2">
+        <button id="throwBtn" class="pointer-events-auto hidden cursor-pointer rounded border-2 border-black bg-yellow-400/90 px-3 py-1 text-sm text-black"></button>
         <button id="zoomBtn" class="pointer-events-auto cursor-pointer rounded border-2 border-black bg-sky-500/80 px-3 py-1 text-sm">🔍 ${t('ZOOM')}</button>
         <button id="menuBtn" class="pointer-events-auto cursor-pointer rounded border-2 border-black bg-neutral-800/80 px-3 py-1 text-sm">${t('MENÚ')}</button>
       </div>
@@ -765,6 +770,8 @@ const dom = {
   fbSend: el<HTMLButtonElement>('#fbSend'),
   fbClose: el<HTMLButtonElement>('#fbClose'),
   langBtn: el<HTMLButtonElement>('#langBtn'),
+  throwBtn: el<HTMLButtonElement>('#throwBtn'),
+  hintArrow: el<HTMLDivElement>('#hintArrow'),
   muteBtn: el<HTMLButtonElement>('#muteBtn'),
   notice: el<HTMLDivElement>('#notice'),
   signup: el<HTMLDialogElement>('#signup'),
@@ -1238,6 +1245,7 @@ function toggleMute(): void {
 }
 dom.muteBtn.textContent = muted ? t('🔇 SIN SONIDO') : t('🔊 SONIDO')
 dom.muteBtn.addEventListener('click', toggleMute)
+dom.throwBtn.addEventListener('click', throwDecoy)
 dom.langBtn.addEventListener('click', () => setLang(lang === 'es' ? 'en' : 'es'))
 document.documentElement.lang = lang
 
@@ -1295,6 +1303,9 @@ function startLevel(): void {
   pauseT = 0
   inMeeting = []
   seeing.clear()
+  decoys = 0
+  decoyT = 0
+  decoyMesh.visible = false
   eventAt = level >= EVENT_FROM_LEVEL ? 12 + Math.random() * 30 : Infinity
   const plays = (c: Character): boolean => crew.some((p) => p.char === c)
 
@@ -1681,6 +1692,7 @@ addEventListener('keydown', (e) => {
   if (ABILITY_KEYS.has(id) || ABILITY_KEYS.has(e.key)) useAbility(player)
   else if (id === 'KeyZ') toggleZoom()
   else if (id === 'KeyM') toggleMute()
+  else if (id === 'KeyF') throwDecoy()
   else if (id === 'Enter') confirm()
   else if (id === 'Escape' && phase !== 'menu') showMenu()
 })
@@ -1767,6 +1779,28 @@ function completeItem(target: Item): boolean {
   return commitSteal(target)
 }
 
+// Señuelos: cada objeto robado se puede lanzar para que los vigilantes cercanos vayan a mirar.
+const MAX_DECOYS = 3
+const THROW_RANGE = 4
+const DECOY_RADIUS = 7
+const DECOY_SECONDS = 4
+let decoys = 0
+let decoyT = 0
+const decoyMesh = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.25, 0.25), new THREE.MeshBasicMaterial({ color: 0xfde047 }))
+decoyMesh.visible = false
+scene.add(decoyMesh)
+
+function throwDecoy(): void {
+  if (phase !== 'playing' || decoys <= 0) return
+  decoys -= 1
+  const land = resolveCircle(player.x + Math.cos(player.dir) * THROW_RANGE, player.z + Math.sin(player.dir) * THROW_RANGE, 0.2, SOLID)
+  decoyMesh.position.set(land.x, 0.2, land.z)
+  decoyMesh.visible = true
+  decoyT = DECOY_SECONDS
+  for (const n of npcs) if (Math.hypot(n.x - land.x, n.z - land.z) <= DECOY_RADIUS) Object.assign(n, { lure: land, lureT: DECOY_SECONDS })
+  tone(220, 0, 0.12, 'triangle', 0.12)
+}
+
 // Eventos: una vez por nivel (desde el 3) pasa algo en la oficina.
 const EVENT_FROM_LEVEL = 3
 const MEETING_SECONDS = 12
@@ -1809,6 +1843,9 @@ function update(dt: number): void {
   clock += dt
   timeLeft -= dt
   runEvent()
+  if (decoyT > 0 && (decoyT -= dt) <= 0) decoyMesh.visible = false
+  // La música se acelera en los últimos 30 s.
+  if (pulseRate && audio) pulseRate.setTargetAtTime(6 + 6 * Math.min(1, Math.max(0, (30 - timeLeft) / 30)), audio.currentTime, 0.2)
   for (const item of items) item.marker.rotateY(dt * 3)
 
   // Cada jugador elige el objeto que tiene a mano, decide si roba y se mueve.
@@ -1933,6 +1970,7 @@ function update(dt: number): void {
     vanishing.set(target, 0)
     target.marker.visible = false
     items = items.filter((i) => i !== target)
+    decoys = Math.min(MAX_DECOYS, decoys + 1)
     sfx.pick()
     if (completeItem(target)) return win()
   }
@@ -1954,8 +1992,33 @@ function abilityText(p: Player, ready: string): string {
   return !effect ? t('PASIVA') : p.cooldown > 99 ? t('USADA') : p.cooldown > 0 ? `${Math.ceil(p.cooldown)} s` : ready
 }
 
+/** Flecha al borde de la pantalla hacia el objeto más cercano cuando ninguno se ve. */
+const hintPoint = new THREE.Vector3()
+
+function drawHint(): void {
+  const near = phase === 'playing' ? items.reduce<Item | undefined>((best, i) => (!best || Math.hypot(i.x - player.x, i.z - player.z) < Math.hypot(best.x - player.x, best.z - player.z) ? i : best), undefined) : undefined
+  if (!near) return void dom.hintArrow.classList.add('hidden')
+  hintPoint.set(near.x, near.y, near.z).project(camera)
+  const onScreen = items.some((i) => {
+    const p = hintPoint.clone().set(i.x, i.y, i.z).project(camera)
+    return Math.abs(p.x) < 0.9 && Math.abs(p.y) < 0.85
+  })
+  dom.hintArrow.classList.toggle('hidden', onScreen)
+  if (onScreen) return
+  // Desde el personaje (centro de la pantalla) hacia el objeto, recortado a un margen del borde.
+  const k = 0.82 / Math.max(Math.abs(hintPoint.x) / 0.9, Math.abs(hintPoint.y) / 0.85)
+  const x = hintPoint.x * k
+  const y = hintPoint.y * k
+  dom.hintArrow.style.left = `${((x + 1) / 2) * 100}%`
+  dom.hintArrow.style.top = `${((1 - y) / 2) * 100}%`
+  dom.hintArrow.style.transform = `translate(-50%, -50%) rotate(${Math.atan2(x, y)}rad)`
+}
+
 function drawHud(): void {
   dom.count.textContent = `${total - items.length} / ${total}`
+  dom.throwBtn.classList.toggle('hidden', decoys === 0)
+  dom.throwBtn.textContent = `🎯 ${t('LANZAR')} ×${decoys}${TV ? '' : ' (F)'}`
+  drawHint()
   const secs = Math.max(0, Math.ceil(timeLeft))
   dom.timer.textContent = `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`
   dom.timer.classList.toggle('text-red-500', timeLeft <= 10)
