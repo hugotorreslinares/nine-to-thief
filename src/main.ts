@@ -110,6 +110,7 @@ const hasWebGL2 = probe !== null
 probe?.getExtension('WEBGL_lose_context')?.loseContext() // el sondeo no debe gastar uno de los pocos contextos del navegador
 const renderer = new (hasWebGL2 ? THREE.WebGLRenderer : THREE.WebGL1Renderer)({ canvas, antialias: !LITE, alpha: true })
 renderer.shadowMap.enabled = !LITE
+renderer.shadowMap.autoUpdate = false // las sombras se redibujan una de cada dos veces (ver frame)
 
 // El protagonista es el modelo 3D de la figura física (más liviano en la tele); si no carga, se arma con piezas.
 const heroModel = await loadModelFigure(LITE ? '/models/nine-tv.glb' : '/models/nine-desktop.glb', 1.5)
@@ -151,7 +152,7 @@ const sun = new THREE.DirectionalLight(0xfff2dd, 2)
 sun.position.set(MAP.w / 2 - 10, 26, MAP.d / 2 + 9)
 sun.target.position.set(MAP.w / 2, 0, MAP.d / 2)
 sun.castShadow = !LITE
-sun.shadow.mapSize.setScalar(TV ? 1024 : 2048)
+sun.shadow.mapSize.setScalar(1024)
 Object.assign(sun.shadow.camera, { left: -24, right: 24, top: 24, bottom: -24, near: 1, far: 80 })
 scene.add(sun, sun.target)
 
@@ -2059,6 +2060,8 @@ syncObjects()
 if (!connecting) renderMenu()
 
 let last = performance.now()
+let frameCount = 0
+
 function frame(now: number): void {
   const dt = Math.min((now - last) / 1000, 0.05)
   last = now
@@ -2116,7 +2119,12 @@ function frame(now: number): void {
     item.mesh.position.y += dt * 1.5
     item.mesh.rotation.y += dt * 14
   }
-  renderer.render(scene, camera)
+  // El menú no necesita 60 fps: se dibuja a 30. Las sombras se actualizan en cuadros alternos.
+  frameCount++
+  if (phase !== 'menu' || frameCount % 2 === 0) {
+    renderer.shadowMap.needsUpdate = frameCount % 2 === 0
+    renderer.render(scene, camera)
+  }
   requestAnimationFrame(frame)
 }
 requestAnimationFrame(frame)
