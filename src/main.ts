@@ -644,7 +644,7 @@ function headHtml(i: number): string {
   const color = i === 0 ? '#fde047' : '#67e8f9'
   return `
     <div id="head${i}" class="ink pointer-events-none absolute left-0 top-0 hidden flex-col items-center gap-1">
-      <div class="headPrompt animate-pulse rounded-lg border-2 border-black px-3 py-0.5 text-2xl text-black" style="background:${color}"></div>
+      <div class="headPrompt animate-pulse rounded-lg border-2 border-black px-3 py-0.5 text-2xl text-black [text-shadow:none]" style="background:${color}"></div>
       <progress class="headGrab h-3 w-28" style="accent-color:${color}" max="1" value="0"></progress>
       <div class="text-xl leading-none" style="color:${color}">▼</div>
     </div>`
