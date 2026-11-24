@@ -101,3 +101,16 @@ export async function sendFeedback(rating: number, text: string, email: string, 
   })
   if (!res.ok) throw new PlayError(res.status, `Error ${res.status}`)
 }
+
+/** Unidades que quedan de la preventa; undefined si no se pudo consultar. */
+export async function fetchPresaleLeft(): Promise<number | undefined> {
+  try {
+    const res = await fetch('/api/presale')
+    if (!res.ok) return undefined
+    const { left } = (await res.json()) as { left?: unknown }
+    return typeof left === 'number' ? left : undefined
+  } catch (err) {
+    console.warn('No se pudo consultar la preventa', err)
+    return undefined
+  }
+}

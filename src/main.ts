@@ -7,12 +7,13 @@ import {
 import { bakeChildren, mergeColored } from './bake.ts'
 import { loadClears, markCleared } from './clears.ts'
 import { PREORDER_URL } from './preorder.ts'
+import { PRESALE_LIMIT } from './presale.ts'
 import { LITE, TOUCH, TV } from './device.ts'
 import { buildFigure, loadModelFigure, reactFigure, setMask, swingLimbs } from './figure.ts'
 import { lang, setLang, t } from './i18n.ts'
 import { COUNTS, DEMO_COUNTS, LEVELS } from './levels.ts'
 import { FRESH, MAX_STARS, caught, steal, type Progress } from './progress.ts'
-import { PlayError, close, idle, joinWaitlist, open, register, report, sendFeedback, type Account } from './session.ts'
+import { PlayError, fetchPresaleLeft, close, idle, joinWaitlist, open, register, report, sendFeedback, type Account } from './session.ts'
 import { PAD_BUTTON, applyPick, type Picks } from './padState.ts'
 import { mugshotHtml, posterHtml } from './poster.ts'
 import qrcode from 'qrcode-generator'
@@ -720,6 +721,7 @@ ui.innerHTML = `
       <li>${t('📺 Juega en la tele y de a dos con celulares')}</li>
       <li>${t('📧 Te avisamos por correo cuándo llegará a tu casa')}</li>
     </ul>
+    <p id="preorderLeft" class="font-gta mb-2 text-xl text-emerald-400"></p>
     <a id="preorderGo" href="${PREORDER_URL}" target="_blank" rel="noopener noreferrer" class="font-gta block cursor-pointer rounded bg-yellow-400 px-4 py-2 text-xl text-black">${t('CONTINUAR AL PAGO')}</a>
     <p class="mt-1 mb-2 font-sans text-xs text-neutral-400">${t('Pagarás de forma segura en Wompi.')}</p>
     <button id="preorderClose" type="button" class="font-gta cursor-pointer rounded bg-neutral-700 px-4 py-1 text-lg text-white">${t('CERRAR')}</button>
@@ -835,6 +837,8 @@ const dom = {
   preorderBannerBtn: document.querySelector<HTMLButtonElement>('#preorderBannerBtn'),
   preorder: document.querySelector<HTMLDialogElement>('#preorder'),
   preorderClose: document.querySelector<HTMLButtonElement>('#preorderClose'),
+  preorderLeft: document.querySelector<HTMLParagraphElement>('#preorderLeft'),
+  preorderGo: document.querySelector<HTMLAnchorElement>('#preorderGo'),
   waitlist: el<HTMLDialogElement>('#waitlist'),
   waitForm: el<HTMLFormElement>('#waitForm'),
   waitEmail: el<HTMLInputElement>('#waitEmail'),
@@ -1313,10 +1317,26 @@ dom.fbBtn.addEventListener('click', (e) => {
   dom.feedback.showModal()
 })
 dom.fbClose.addEventListener('click', () => dom.feedback.close())
+/** Muestra cuántas unidades quedan; agotada, quita el botón de pago. Si no se pudo consultar, no se promete nada. */
+function renderPresale(left: number | undefined): void {
+  const soldOut = left !== undefined && left <= 0
+  if (dom.preorderLeft) {
+    dom.preorderLeft.textContent = left === undefined ? '' : soldOut ? t('PREVENTA AGOTADA') : t('Quedan {n} de {max} en preventa', { n: left, max: PRESALE_LIMIT })
+    dom.preorderLeft.classList.toggle('text-red-400', soldOut)
+    dom.preorderLeft.classList.toggle('text-emerald-400', !soldOut)
+  }
+  dom.preorderGo?.classList.toggle('hidden', soldOut)
+  for (const opener of [dom.preorderBtn, dom.preorderBannerBtn]) {
+    if (opener) opener.textContent = soldOut ? t('🛒 AGOTADO') : t('🛒 PREVENTA')
+  }
+}
+
+if (PREORDER_URL) fetchPresaleLeft().then(renderPresale)
 for (const opener of [dom.preorderBtn, dom.preorderBannerBtn]) {
   opener?.addEventListener('click', (e) => {
     e.stopPropagation() // el cartel entero avanza de nivel al tocarlo
     dom.preorder?.showModal()
+    void fetchPresaleLeft().then(renderPresale) // cifra al día cada vez que se abre
   })
 }
 dom.preorderClose?.addEventListener('click', () => dom.preorder?.close())

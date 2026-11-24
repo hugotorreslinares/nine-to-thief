@@ -4,6 +4,9 @@ import { decode, encode, parseClaim, parseEntry } from '../api/scores.ts'
 import { POST } from '../api/play.ts'
 import { POST as joinWaitlist } from '../api/waitlist.ts'
 import { POST as sendFeedback } from '../api/feedback.ts'
+import { GET as presaleGet } from '../api/presale.ts'
+import { POST as wompiHook } from '../api/wompi.ts'
+import { createHash } from 'node:crypto'
 import { EN } from './i18n.ts'
 import { CHAIRS, CHARACTERS, FURNITURE, MAP, OBJECTS, ROUTES, SPAWN, WALLS, extraObjects, randomLayout } from './data.ts'
 import { COUNTS, LEVELS } from './levels.ts'
@@ -247,5 +250,34 @@ assert.equal(coopZoom({ x: 5, z: 5 }, { x: 6, z: 6 }, 16 / 9, view), 1, 'juntos:
 assert.ok(coopZoom({ x: 2, z: 2 }, { x: 30, z: 20 }, 16 / 9, view) > 1, 'lejos: se aleja')
 assert.equal(coopZoom({ x: 0, z: 0 }, { x: 400, z: 0 }, 16 / 9, view), MAX_ZOOM, 'tope de zoom')
 assert.ok(coopZoom({ x: 2, z: 2 }, { x: 30, z: 2 }, 9 / 16, view) > coopZoom({ x: 2, z: 2 }, { x: 30, z: 2 }, 16 / 9, view), 'pantalla estrecha: más zoom')
+
+// ---------- Preventa: contador y webhook de Wompi ----------
+
+process.env.WOMPI_EVENTS_SECRET = 'secreto-de-prueba'
+const wompiEvent = (id: string, status: string, secret = 'secreto-de-prueba', tamper = false): Request => {
+  const timestamp = 1700000000
+  const checksum = createHash('sha256').update(`${id}${status}${timestamp}${secret}`).digest('hex')
+  const sent = tamper ? 'otro-id' : id
+  return new Request('http://x/api/wompi', {
+    method: 'POST',
+    body: JSON.stringify({
+      event: 'transaction.updated', timestamp, data: { transaction: { id: sent, status } },
+      signature: { properties: ['transaction.id', 'transaction.status'], checksum },
+    }),
+  })
+}
+const sold = async (): Promise<number> => ((await (await presaleGet()).json()) as { sold: number }).sold
+assert.equal(await sold(), 0, 'preventa sin ventas')
+assert.equal((await wompiHook(wompiEvent('t1', 'APPROVED'))).status, 200)
+assert.equal(await sold(), 1, 'un pago aprobado suma uno')
+await wompiHook(wompiEvent('t1', 'APPROVED'))
+assert.equal(await sold(), 1, 'el mismo pago reenviado no suma otra vez')
+await wompiHook(wompiEvent('t2', 'DECLINED'))
+assert.equal(await sold(), 1, 'un pago rechazado no suma')
+assert.equal((await wompiHook(wompiEvent('t3', 'APPROVED', 'secreto-falso'))).status, 401, 'firma con otro secreto: rechazada')
+assert.equal((await wompiHook(wompiEvent('t3', 'APPROVED', 'secreto-de-prueba', true))).status, 401, 'datos alterados: rechazados')
+assert.equal(await sold(), 1, 'las firmas inválidas no suman')
+const state = (await (await presaleGet()).json()) as { limit: number; left: number }
+assert.deepEqual([state.limit, state.left], [10, 9], 'quedan 9 de 10')
 
 console.log('logic ok')
