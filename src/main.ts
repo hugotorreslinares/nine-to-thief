@@ -696,7 +696,7 @@ ui.innerHTML = `
     <div id="bannerText" class="text-xl md:text-3xl"></div>
     <div id="bannerRank" class="text-xl text-emerald-400 md:text-2xl"></div>
     <button id="shareBtn" class="hidden cursor-pointer rounded-lg border-2 border-black bg-emerald-500 px-5 py-2 text-xl">${t('COMPARTIR')}</button>
-    ${PREORDER_URL ? `<a id="preorderBannerBtn" href="${PREORDER_URL ?? '#'}" target="_blank" rel="noopener noreferrer" class="hidden cursor-pointer rounded-lg border-2 border-black bg-yellow-400 px-5 py-2 text-xl text-black">${t('🛒 PREVENTA')}</a>` : ''}
+        ${PREORDER_URL ? `<button id="preorderBannerBtn" type="button" class="hidden cursor-pointer rounded-lg border-2 border-black bg-yellow-400 px-5 py-2 text-xl text-black [text-shadow:none]">${t('🛒 PREVENTA')}</button>` : ''}
     <button id="waitBannerBtn" class="hidden cursor-pointer rounded-lg border-2 border-black bg-pink-500 px-5 py-2 text-xl">${t('🔔 QUIERO MI ART TOY')}</button>
     <div id="bannerHint" class="text-base text-neutral-300 md:text-xl"></div>
   </div>
@@ -710,6 +710,20 @@ ui.innerHTML = `
       <button id="waitClose" type="button" class="font-gta cursor-pointer rounded bg-neutral-700 px-4 py-1 text-lg text-white">${t('CERRAR')}</button>
     </form>
   </dialog>
+  ${PREORDER_URL ? `<dialog id="preorder" class="pointer-events-auto m-auto w-full max-w-sm rounded-xl border-2 border-yellow-300 bg-neutral-900 p-5 text-center text-white backdrop:bg-black/70">
+    <img src="/toy.webp" alt="" class="mx-auto mb-2 h-44 w-auto" />
+    <p class="font-gta mb-2 text-3xl text-yellow-300">${t('TU ART TOY DE NINE')}</p>
+    <ul class="mb-3 flex flex-col gap-1.5 text-left font-sans text-sm text-neutral-200">
+      <li>${t('🧸 El art toy físico de Nine, con chip NFC')}</li>
+      <li>${t('🔓 Acércalo al celular y desbloquea los 10 niveles')}</li>
+      <li>${t('💾 Tu partida y tu progreso se guardan')}</li>
+      <li>${t('📺 Juega en la tele y de a dos con celulares')}</li>
+      <li>${t('📧 Te avisamos por correo cuándo llegará a tu casa')}</li>
+    </ul>
+    <a id="preorderGo" href="${PREORDER_URL}" target="_blank" rel="noopener noreferrer" class="font-gta block cursor-pointer rounded bg-yellow-400 px-4 py-2 text-xl text-black">${t('CONTINUAR AL PAGO')}</a>
+    <p class="mt-1 mb-2 font-sans text-xs text-neutral-400">${t('Pagarás de forma segura en Wompi.')}</p>
+    <button id="preorderClose" type="button" class="font-gta cursor-pointer rounded bg-neutral-700 px-4 py-1 text-lg text-white">${t('CERRAR')}</button>
+  </dialog>` : ''}
   <dialog id="feedback" class="pointer-events-auto m-auto w-full max-w-sm rounded-xl border-2 border-emerald-400 bg-neutral-900 p-5 text-white backdrop:bg-black/70">
     <p class="font-gta mb-1 text-3xl text-emerald-400">${t('TU OPINIÓN')}</p>
     <p class="mb-3 font-sans text-sm text-neutral-300">${t('Cuéntanos qué funcionó y qué no. Lo leo todo.')}</p>
@@ -740,7 +754,7 @@ ui.innerHTML = `
     <p id="clears" class="ink hidden text-center text-base text-sky-300 md:text-xl"></p>
     <p id="challenge" class="ink hidden text-center text-lg text-pink-400 md:text-2xl"></p>
     <div class="flex flex-wrap items-center justify-center gap-2">
-      ${PREORDER_URL ? `<a id="preorderBtn" href="${PREORDER_URL ?? '#'}" target="_blank" rel="noopener noreferrer" class="ink cursor-pointer rounded-lg border-2 border-black bg-yellow-400 px-4 py-2 text-lg text-black">${t('🛒 PREVENTA')}</a>` : ''}
+      ${PREORDER_URL ? `<button id="preorderBtn" type="button" class="ink cursor-pointer rounded-lg border-2 border-black bg-yellow-400 px-4 py-2 text-lg text-black [text-shadow:none]">${t('🛒 PREVENTA')}</button>` : ''}
       <button id="waitBtn" class="ink cursor-pointer rounded-lg border-2 border-black bg-pink-500 px-4 py-2 text-lg">${t('🔔 QUIERO MI ART TOY')}</button>
       <button id="fbBtn" class="ink cursor-pointer rounded-lg border-2 border-black bg-emerald-500 px-4 py-2 text-lg">${t('💬 OPINIÓN')}</button>
       <button id="muteBtn" class="ink cursor-pointer rounded-lg border-2 border-black bg-neutral-700 px-4 py-2 text-lg"></button>
@@ -817,8 +831,10 @@ const dom = {
   challenge: el<HTMLParagraphElement>('#challenge'),
   waitBtn: el<HTMLButtonElement>('#waitBtn'),
   waitBannerBtn: el<HTMLButtonElement>('#waitBannerBtn'),
-  preorderBtn: document.querySelector<HTMLAnchorElement>('#preorderBtn'),
-  preorderBannerBtn: document.querySelector<HTMLAnchorElement>('#preorderBannerBtn'),
+  preorderBtn: document.querySelector<HTMLButtonElement>('#preorderBtn'),
+  preorderBannerBtn: document.querySelector<HTMLButtonElement>('#preorderBannerBtn'),
+  preorder: document.querySelector<HTMLDialogElement>('#preorder'),
+  preorderClose: document.querySelector<HTMLButtonElement>('#preorderClose'),
   waitlist: el<HTMLDialogElement>('#waitlist'),
   waitForm: el<HTMLFormElement>('#waitForm'),
   waitEmail: el<HTMLInputElement>('#waitEmail'),
@@ -1297,6 +1313,13 @@ dom.fbBtn.addEventListener('click', (e) => {
   dom.feedback.showModal()
 })
 dom.fbClose.addEventListener('click', () => dom.feedback.close())
+for (const opener of [dom.preorderBtn, dom.preorderBannerBtn]) {
+  opener?.addEventListener('click', (e) => {
+    e.stopPropagation() // el cartel entero avanza de nivel al tocarlo
+    dom.preorder?.showModal()
+  })
+}
+dom.preorderClose?.addEventListener('click', () => dom.preorder?.close())
 dom.fbForm.addEventListener('submit', (e) => {
   e.preventDefault()
   if (rating === 0) {
@@ -1766,7 +1789,7 @@ dom.tvLinkForm.addEventListener('submit', (e) => {
 })
 
 addEventListener('keydown', (e) => {
-  if (e.target instanceof HTMLInputElement || dom.waitlist.open) return // escribiendo, o con la lista de espera abierta
+  if (e.target instanceof HTMLInputElement || dom.waitlist.open || dom.preorder?.open) return // escribiendo, o con la lista de espera abierta
   const id = keyId(e)
   // Jugando, las flechas y OK no deben mover el foco ni pulsar botones de la interfaz.
   if (phase === 'playing' && (id.startsWith('Arrow') || id === 'Enter')) e.preventDefault()
