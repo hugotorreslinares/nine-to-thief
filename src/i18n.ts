@@ -153,6 +153,7 @@ export const EN: Readonly<Record<string, string>> = {
   '✓ ¡Gracias por tu opinión!': '✓ Thanks for your feedback!',
   'SILENCIO': 'MUTE',
   '🛒 PREVENTA': '🛒 PRE-ORDER',
+  '💛 APÓYAME · $5.000': '💛 SUPPORT ME · $5,000 COP',
   'TU ART TOY DE NINE': 'YOUR NINE ART TOY',
   '🧸 El art toy físico de Nine, con chip NFC': '🧸 The physical Nine art toy, with an NFC chip',
   '🔓 Acércalo al celular y desbloquea los 10 niveles': '🔓 Tap it on your phone and unlock all 10 levels',

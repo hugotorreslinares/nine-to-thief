@@ -6,7 +6,7 @@ import {
 } from './data.ts'
 import { bakeChildren, mergeColored } from './bake.ts'
 import { loadClears, markCleared } from './clears.ts'
-import { PREORDER_URL } from './preorder.ts'
+import { PREORDER_URL, SUPPORT_URL } from './preorder.ts'
 import { PRESALE_LIMIT } from './presale.ts'
 import { LITE, TOUCH, TV } from './device.ts'
 import { buildFigure, loadModelFigure, reactFigure, setMask, swingLimbs } from './figure.ts'
@@ -756,6 +756,7 @@ ui.innerHTML = `
     <p id="clears" class="ink hidden text-center text-base text-sky-300 md:text-xl"></p>
     <p id="challenge" class="ink hidden text-center text-lg text-pink-400 md:text-2xl"></p>
     <div class="flex flex-wrap items-center justify-center gap-2">
+      ${SUPPORT_URL ? `<a id="supportBtn" href="${SUPPORT_URL}" target="_blank" rel="noopener noreferrer" class="ink cursor-pointer rounded-lg border-2 border-black bg-sky-500 px-4 py-2 text-lg">${t('💛 APÓYAME · $5.000')}</a>` : ''}
       ${PREORDER_URL ? `<button id="preorderBtn" type="button" class="ink cursor-pointer rounded-lg border-2 border-black bg-yellow-400 px-4 py-2 text-lg text-black [text-shadow:none]">${t('🛒 PREVENTA')}</button>` : ''}
       <button id="waitBtn" class="ink cursor-pointer rounded-lg border-2 border-black bg-pink-500 px-4 py-2 text-lg">${t('🔔 QUIERO MI ART TOY')}</button>
       <button id="fbBtn" class="ink cursor-pointer rounded-lg border-2 border-black bg-emerald-500 px-4 py-2 text-lg">${t('💬 OPINIÓN')}</button>
