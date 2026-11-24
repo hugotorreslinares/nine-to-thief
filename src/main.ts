@@ -6,6 +6,7 @@ import {
 } from './data.ts'
 import { bakeChildren, mergeColored } from './bake.ts'
 import { loadClears, markCleared } from './clears.ts'
+import { PREORDER_URL } from './preorder.ts'
 import { LITE, TOUCH, TV } from './device.ts'
 import { buildFigure, loadModelFigure, reactFigure, setMask, swingLimbs } from './figure.ts'
 import { lang, setLang, t } from './i18n.ts'
@@ -695,6 +696,7 @@ ui.innerHTML = `
     <div id="bannerText" class="text-xl md:text-3xl"></div>
     <div id="bannerRank" class="text-xl text-emerald-400 md:text-2xl"></div>
     <button id="shareBtn" class="hidden cursor-pointer rounded-lg border-2 border-black bg-emerald-500 px-5 py-2 text-xl">${t('COMPARTIR')}</button>
+    ${PREORDER_URL ? `<a id="preorderBannerBtn" href="${PREORDER_URL ?? '#'}" target="_blank" rel="noopener noreferrer" class="hidden cursor-pointer rounded-lg border-2 border-black bg-yellow-400 px-5 py-2 text-xl text-black">${t('🛒 PREVENTA')}</a>` : ''}
     <button id="waitBannerBtn" class="hidden cursor-pointer rounded-lg border-2 border-black bg-pink-500 px-5 py-2 text-xl">${t('🔔 QUIERO MI ART TOY')}</button>
     <div id="bannerHint" class="text-base text-neutral-300 md:text-xl"></div>
   </div>
@@ -738,6 +740,7 @@ ui.innerHTML = `
     <p id="clears" class="ink hidden text-center text-base text-sky-300 md:text-xl"></p>
     <p id="challenge" class="ink hidden text-center text-lg text-pink-400 md:text-2xl"></p>
     <div class="flex flex-wrap items-center justify-center gap-2">
+      ${PREORDER_URL ? `<a id="preorderBtn" href="${PREORDER_URL ?? '#'}" target="_blank" rel="noopener noreferrer" class="ink cursor-pointer rounded-lg border-2 border-black bg-yellow-400 px-4 py-2 text-lg text-black">${t('🛒 PREVENTA')}</a>` : ''}
       <button id="waitBtn" class="ink cursor-pointer rounded-lg border-2 border-black bg-pink-500 px-4 py-2 text-lg">${t('🔔 QUIERO MI ART TOY')}</button>
       <button id="fbBtn" class="ink cursor-pointer rounded-lg border-2 border-black bg-emerald-500 px-4 py-2 text-lg">${t('💬 OPINIÓN')}</button>
       <button id="muteBtn" class="ink cursor-pointer rounded-lg border-2 border-black bg-neutral-700 px-4 py-2 text-lg"></button>
@@ -814,6 +817,8 @@ const dom = {
   challenge: el<HTMLParagraphElement>('#challenge'),
   waitBtn: el<HTMLButtonElement>('#waitBtn'),
   waitBannerBtn: el<HTMLButtonElement>('#waitBannerBtn'),
+  preorderBtn: document.querySelector<HTMLAnchorElement>('#preorderBtn'),
+  preorderBannerBtn: document.querySelector<HTMLAnchorElement>('#preorderBannerBtn'),
   waitlist: el<HTMLDialogElement>('#waitlist'),
   waitForm: el<HTMLFormElement>('#waitForm'),
   waitEmail: el<HTMLInputElement>('#waitEmail'),
@@ -925,6 +930,7 @@ function renderMenu(): void {
     : TV ? t('DEMO: solo el nivel 1. En tu celular abre tu art toy y toca "Jugar en la tele".') : t('DEMO: solo el nivel 1. Acerca tu art toy para jugar los 10 niveles.')
   // Con art toy sobran la lista de espera y el cambio de idioma (recargar cerraría la sesión).
   dom.waitBtn.classList.toggle('hidden', account !== undefined)
+  dom.preorderBtn?.classList.toggle('hidden', account !== undefined)
   // Con un art toy abierto en este celular se puede mandar la partida a la tele.
   dom.tvLinkBtn.classList.toggle('hidden', account === undefined || tagCode === undefined || TV)
   dom.langBtn.classList.toggle('hidden', account !== undefined)
@@ -1328,6 +1334,7 @@ function showBanner(title: string, color: string, text: string, hint: string): v
   shot = undefined
   dom.mugshot.classList.add('hidden')
   dom.waitBannerBtn.classList.add('hidden')
+  dom.preorderBannerBtn?.classList.add('hidden')
   dom.bannerRank.textContent = ''
   dom.shareBtn.textContent = t('COMPARTIR')
   dom.shareBtn.classList.toggle('hidden', bestLevel === 0)
@@ -1479,6 +1486,7 @@ function win(): void {
   else {
     showBanner(t('DEMO SUPERADA'), 'text-yellow-300', t('Acerca tu art toy para jugar los 10 niveles y guardar tu partida.'), back)
     dom.waitBannerBtn.classList.remove('hidden')
+    dom.preorderBannerBtn?.classList.remove('hidden')
   }
   if (challenge && (level > challenge.level || (level === challenge.level && spare > challenge.seconds))) dom.bannerTitle.textContent = t('¡Reto superado!')
   reportWin()

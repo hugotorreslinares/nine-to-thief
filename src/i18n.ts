@@ -152,6 +152,7 @@ export const EN: Readonly<Record<string, string>> = {
   'Elige una valoración de 1 a 5 estrellas': 'Pick a rating from 1 to 5 stars',
   '✓ ¡Gracias por tu opinión!': '✓ Thanks for your feedback!',
   'SILENCIO': 'MUTE',
+  '🛒 PREVENTA': '🛒 PRE-ORDER',
   'Solo': 'Solo',
   'De a dos': 'Two players',
   '¡pruébalo de a dos!': 'try it with two players!',
