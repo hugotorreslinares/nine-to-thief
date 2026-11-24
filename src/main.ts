@@ -195,8 +195,11 @@ function resize(): void {
 addEventListener('resize', resize)
 resize()
 
+/** Altura de la cámara sobre el suelo con un desplazamiento horizontal de 15 + 15: 12,25 daba 30° de inclinación, 17,8 da 40° (más vista desde arriba). */
+const CAMERA_HEIGHT = 17.8
+
 function lookAt(x: number, z: number): void {
-  camera.position.set(x + 15, 12.25, z + 15)
+  camera.position.set(x + 15, CAMERA_HEIGHT, z + 15)
   camera.lookAt(x, 0, z)
 }
 
