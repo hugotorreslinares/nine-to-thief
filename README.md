@@ -40,7 +40,7 @@ Hecho con Vite, Three.js (fijada en r162), TypeScript y Tailwind. El tablón de 
 
 ## Art toys NFC
 
-Sin art toy se juega la demo (solo el nivel 1, no se guarda). Cada art toy lleva una etiqueta NFC con una URL `/play/<código>`: el primer tap registra al jugador y los siguientes abren su partida de 10 niveles (`api/play.ts`).
+Sin art toy se juega la demo (solo los niveles 1 y 2, no se guarda). Cada art toy lleva una etiqueta NFC con una URL `/play/<código>`: el primer tap registra al jugador y los siguientes abren su partida de 10 niveles (`api/play.ts`).
 
 ```bash
 node scripts/tags.ts 20

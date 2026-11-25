@@ -117,4 +117,4 @@ export const LEVELS: readonly LevelKind[] = [
 export const COUNTS: readonly number[] = LEVELS.map((kind) => kind.places.length)
 
 /** Sin art toy solo se juega el primer nivel. */
-export const DEMO_COUNTS: readonly number[] = COUNTS.slice(0, 1)
+export const DEMO_COUNTS: readonly number[] = COUNTS.slice(0, 2)

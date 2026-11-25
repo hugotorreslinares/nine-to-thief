@@ -948,7 +948,7 @@ function renderMenu(): void {
   // textContent: el nombre lo escribió el jugador.
   dom.account.textContent = account
     ? `${account.name} · ${finished() ? t('OFICINA VACÍA') : t('NIVEL {n}', { n: progress.level })} · ${starsText()}`
-    : TV ? t('DEMO: solo el nivel 1. En tu celular abre tu art toy y toca "Jugar en la tele".') : t('DEMO: solo el nivel 1. Acerca tu art toy para jugar los 10 niveles.')
+    : TV ? t('DEMO: solo los niveles 1 y 2. En tu celular abre tu art toy y toca "Jugar en la tele".') : t('DEMO: solo los niveles 1 y 2. Acerca tu art toy para jugar los 10 niveles.')
   // Con art toy sobran la lista de espera y el cambio de idioma (recargar cerraría la sesión).
   dom.waitBtn.classList.toggle('hidden', account !== undefined)
   dom.preorderBtn?.classList.toggle('hidden', account !== undefined)
