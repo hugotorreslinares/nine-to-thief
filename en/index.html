@@ -8,6 +8,9 @@
     <meta name="description" content="Free isometric stealth game: pick your character and steal stuff from the office without getting caught. One minute per level, global leaderboard, on desktop and mobile." />
     <meta name="referrer" content="no-referrer" />
     <link rel="canonical" href="https://nine-to-thief.vercel.app/en/" />
+    <link rel="alternate" hreflang="es" href="https://nine-to-thief.vercel.app/" />
+    <link rel="alternate" hreflang="en" href="https://nine-to-thief.vercel.app/en/" />
+    <link rel="alternate" hreflang="x-default" href="https://nine-to-thief.vercel.app/" />
     <link rel="icon" type="image/png" href="/icon-192.png" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Nine to Thief" />
@@ -56,6 +59,17 @@
       })
     </script>
     <script defer src="/_vercel/insights/script.js"></script>
+    <script>
+      // GTM no carga en /play/<código>: esa URL es una credencial y GTM la registraría como page_location.
+      if (!location.pathname.startsWith('/play/')) {
+        window.dataLayer = window.dataLayer || []
+        window.dataLayer.push({ 'gtm.start': Date.now(), event: 'gtm.js' })
+        const s = document.createElement('script')
+        s.async = true
+        s.src = 'https://www.googletagmanager.com/gtm.js?id=GTM-PQ56LHH5'
+        document.head.appendChild(s)
+      }
+    </script>
   </head>
   <body class="font-gta m-0 touch-manipulation overflow-hidden overscroll-none bg-neutral-950 text-white select-none">
     <canvas id="game" class="block h-dvh w-screen touch-none"></canvas>
