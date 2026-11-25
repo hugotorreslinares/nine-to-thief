@@ -31,6 +31,14 @@
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
             </intent-filter>
 
+            <!-- Art toy NFC: la etiqueta abre /play/<código>; con la app instalada se abre aquí y no en el navegador -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="nine-to-thief.vercel.app" android:pathPrefix="/play/" />
+            </intent-filter>
+
         </activity>
 
         <provider

@@ -1,5 +1,7 @@
 package dev.ninetothief.app;
 
+import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.view.KeyEvent;
 import android.view.WindowManager;
@@ -17,6 +19,22 @@ public class MainActivity extends BridgeActivity {
         // Empezar la partida con el mando no cuenta como gesto de usuario: sin esto no habría sonido
         getBridge().getWebView().getSettings().setMediaPlaybackRequiresUserGesture(false);
         hideSystemBars();
+        openPlayLink(getIntent());
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        openPlayLink(intent);
+    }
+
+    // Etiqueta NFC del art toy: carga /play/<código> (solo de nuestro dominio) en vez de la portada.
+    private void openPlayLink(Intent intent) {
+        Uri link = intent == null ? null : intent.getData();
+        if (link == null || !"nine-to-thief.vercel.app".equals(link.getHost())) return;
+        String path = link.getPath();
+        if (path == null || !path.startsWith("/play/")) return;
+        getBridge().getWebView().loadUrl(link.toString());
     }
 
     @Override
