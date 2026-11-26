@@ -24,6 +24,7 @@ import { surface, type Surface } from './surface.ts'
 import { addOffice, addPlant, tickDust } from './props.ts'
 import { burstConfetti, burstSparks, fx, tickFx } from './fx.ts'
 import { addFixedContact, createMovingContact } from './contact.ts'
+import { STORIES } from './stories.ts'
 import { carpetTexture } from './textures.ts'
 import { claimNick, cleanNick, fetchBoard, isTaken, loadNick, saveNick, submitScore } from './scores.ts'
 import { canSee, coopZoom, rayDistance, resolveCircle, turnToward, type Box, type Pt } from './logic.ts'
@@ -821,7 +822,11 @@ ui.innerHTML = `
         <button class="font-gta cursor-pointer rounded bg-yellow-300 px-4 py-1 text-lg text-black">${t('LISTO')}</button>
       </form>
     </dialog>
-    <div id="roster" class="grid w-full max-w-6xl grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"></div>
+    <div class="flex w-full max-w-6xl items-stretch gap-2">
+      <button id="rosterPrev" aria-label="${t('Anteriores')}" class="font-gta pointer-events-auto cursor-pointer self-center rounded-lg border-2 border-neutral-600 bg-neutral-900/90 px-3 py-6 text-3xl text-yellow-300 hover:border-yellow-300">‹</button>
+      <div id="roster" class="flex min-w-0 flex-1 snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"></div>
+      <button id="rosterNext" aria-label="${t('Siguientes')}" class="font-gta pointer-events-auto cursor-pointer self-center rounded-lg border-2 border-neutral-600 bg-neutral-900/90 px-3 py-6 text-3xl text-yellow-300 hover:border-yellow-300">›</button>
+    </div>
     <p class="ink text-center text-base text-neutral-300 md:text-lg">${pick('Palanca: moverse · mantén ROBAR · toca la habilidad para usarla', 'Flechas: moverse · mantén OK: robar · PLAY: habilidad · Atrás: menú', 'WASD / flechas: moverse · mantén E: robar · Q: habilidad · Esc: menú')}</p>
     <footer class="mt-4 flex w-full max-w-6xl flex-col items-center gap-3 border-t-2 border-neutral-700 pt-5 pb-6 text-center font-sans text-sm text-neutral-400">
       <a href="https://www.instagram.com/mrmonomalo/" target="_blank" rel="noopener noreferrer" class="flex items-center gap-2 rounded-full border-2 border-black bg-linear-to-r from-fuchsia-600 via-rose-500 to-amber-400 px-4 py-2 text-base font-bold text-white hover:brightness-110">
@@ -924,6 +929,8 @@ const dom = {
   ability2Name: el<HTMLDivElement>('#ability2Name'),
   ability2State: el<HTMLDivElement>('#ability2State'),
   roster: el<HTMLDivElement>('#roster'),
+  rosterPrev: el<HTMLButtonElement>('#rosterPrev'),
+  rosterNext: el<HTMLButtonElement>('#rosterNext'),
   radar: el<HTMLCanvasElement>('#radar'),
 }
 
@@ -969,16 +976,28 @@ function renderMenu(): void {
   const own = account ? CHARACTERS.find((c) => c.id === progress.char) ?? CHARACTERS.find((c) => c.hero) : undefined
   // Datos estáticos propios: no hay entrada de usuario en este HTML.
   dom.roster.innerHTML = (own ? [own] : CHARACTERS).map((c) => `
-  <button data-id="${c.id}" class="flex cursor-pointer items-center gap-4 rounded-lg border-2 ${c.hero ? 'border-yellow-300' : 'border-neutral-700'} bg-neutral-900/90 p-2 text-left hover:border-yellow-300 hover:bg-neutral-800">
-    <img src="${portraits.get(c.id) ?? ''}" alt="${c.name}" class="size-20 shrink-0 md:size-28" />
-    <span class="flex flex-col">
-      <span class="text-3xl text-yellow-300">${c.name}</span>
-      <span class="text-xl text-sky-300">${t(c.ability.name)}</span>
-      <span class="font-sans text-sm text-neutral-200 md:text-base">${t(c.ability.text)}</span>
+  <button data-id="${c.id}" class="flex shrink-0 basis-full cursor-pointer snap-start flex-col gap-3 rounded-lg border-2 lg:basis-[calc((100%-1.5rem)/3)] ${c.hero ? 'border-yellow-300' : 'border-neutral-700'} bg-neutral-900/90 p-3 text-left hover:border-yellow-300 hover:bg-neutral-800">
+    <span class="flex items-center gap-4">
+      <img src="${portraits.get(c.id) ?? ''}" alt="${c.name}" class="size-24 shrink-0 md:size-32" />
+      <span class="flex flex-col">
+        <span class="text-3xl text-yellow-300">${c.name}</span>
+        <span class="text-xl text-sky-300">${t(c.ability.name)}</span>
+        <span class="font-sans text-sm text-neutral-200 md:text-base">${t(c.ability.text)}</span>
+      </span>
     </span>
+    <span class="font-sans text-sm text-neutral-300 italic md:text-base">“${t(STORIES[c.id]?.es ?? '')}”</span>
     ${pickTag(c.id)}
   </button>`).join('')
+  const several = !own
+  dom.rosterPrev.classList.toggle('hidden', !several)
+  dom.rosterNext.classList.toggle('hidden', !several)
+  dom.roster.scrollTo({ left: 0, behavior: 'instant' })
 }
+
+/** Una "página" del carrusel: 3 personajes en pantalla ancha, 1 en celular. */
+const turnRoster = (dir: -1 | 1): void => dom.roster.scrollBy({ left: dir * dom.roster.clientWidth, behavior: 'smooth' })
+dom.rosterPrev.addEventListener('click', () => turnRoster(-1))
+dom.rosterNext.addEventListener('click', () => turnRoster(1))
 
 dom.roster.addEventListener('click', (e) => {
   const button = e.target instanceof Element ? e.target.closest<HTMLButtonElement>('button[data-id]') : null

@@ -1,6 +1,8 @@
 // Idiomas. El español es el texto fuente: `t(texto)` lo devuelve tal cual o su traducción.
 // logic.check.ts falla si algún texto usado con t() no tiene traducción aquí.
 
+import { STORIES } from './stories.ts'
+
 export type Lang = 'es' | 'en'
 
 const KEY = 'office-theft-lang'
@@ -268,6 +270,10 @@ export const EN: Readonly<Record<string, string>> = {
   'Los cercanos miran donde cantó 3 s. Recarga corta.': 'Those nearby look where they sang for 3 s. Short cooldown.',
   'Modo sombra': 'Shadow mode',
   'Invisible para todos durante 2,5 s. Además roba 15 % más rápido.': 'Invisible to everyone for 2.5 s. Also steals 15% faster.',
+  // carrusel de personajes (menú)
+  'Anteriores': 'Previous',
+  'Siguientes': 'Next',
+  ...Object.fromEntries(Object.values(STORIES).map((story) => [story.es, story.en])),
 }
 
 /** Texto en el idioma activo; `{clave}` se sustituye por `vars.clave`. */

@@ -8,6 +8,7 @@ import { GET as presaleGet } from '../api/presale.ts'
 import { POST as wompiHook } from '../api/wompi.ts'
 import { createHash } from 'node:crypto'
 import { EN } from './i18n.ts'
+import { STORIES } from './stories.ts'
 import { CHAIRS, CHARACTERS, FURNITURE, MAP, OBJECTS, ROUTES, SPAWN, WALLS, extraObjects, randomLayout } from './data.ts'
 import { COUNTS, LEVELS } from './levels.ts'
 import { FRESH, MAX_STARS, caught, steal, type Progress } from './progress.ts'
@@ -192,6 +193,11 @@ assert.equal((await feedback({ rating: 3, text: 'otro' }, '4.4.4.4')).status, 42
 // ---------- Traducciones ----------
 
 const used = new Set<string>([...LEVELS.map((kind) => kind.plural), ...CHARACTERS.flatMap((c) => [c.ability.name, c.ability.text])])
+for (const c of CHARACTERS) {
+  const story = STORIES[c.id]
+  assert.ok(story, `falta la historia de ${c.id}`)
+  used.add(story.es)
+}
 const srcDir = new URL('.', import.meta.url)
 for (const file of readdirSync(srcDir).filter((name) => name.endsWith('.ts'))) {
   for (const found of readFileSync(new URL(file, srcDir), 'utf8').matchAll(/\bt\('([^']+)'/g)) used.add(found[1] ?? '')
