@@ -58,7 +58,7 @@
       }
     </script>
   </head>
-  <body class="font-gta m-0 touch-manipulation overflow-hidden overscroll-none bg-neutral-950 text-white select-none">
+  <body class="font-gta m-0 touch-manipulation overflow-hidden overscroll-none bg-[radial-gradient(ellipse_at_50%_40%,#2a2d3a_0%,#15161c_60%,#0b0b0f_100%)] text-white select-none">
     <main id="seo" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap">
       <h1>Nine to Thief: juego de sigilo para robar la oficina sin que te vean</h1>
       <p>Nine to Thief es un juego de sigilo isométrico gratis que se juega en el navegador, en el celular y en Android TV, sin descargar nada. Elige entre 16 personajes, cuélate en la oficina, roba grapadoras, lápices, tazas de café, teclados y trofeos, y esquiva las miradas de tus compañeros antes de que se acabe el minuto del nivel. Juega solo o de a dos en la tele y compite en el tablón mundial.</p>
@@ -69,6 +69,7 @@
       <noscript>Nine to Thief necesita JavaScript para jugar. Es un juego de sigilo gratis para navegador, celular y Android TV.</noscript>
     </main>
     <canvas id="game" class="block h-dvh w-screen touch-none"></canvas>
+    <div id="vignette" class="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_center,transparent_55%,rgba(0,0,0,0.45)_100%)]"></div>
     <div id="ui" class="pointer-events-none fixed inset-0"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>

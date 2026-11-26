@@ -59,7 +59,7 @@
       }
     </script>
   </head>
-  <body class="font-gta m-0 touch-manipulation overflow-hidden overscroll-none bg-neutral-950 text-white select-none">
+  <body class="font-gta m-0 touch-manipulation overflow-hidden overscroll-none bg-[radial-gradient(ellipse_at_50%_40%,#2a2d3a_0%,#15161c_60%,#0b0b0f_100%)] text-white select-none">
     <main id="seo" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap">
       <h1>Nine to Thief: free stealth game where you steal the office without getting caught</h1>
       <p>Nine to Thief is a free isometric stealth game you play in your browser, on your phone or on Android TV, with nothing to download. Pick one of 16 characters, sneak into the office, steal staplers, pencils, coffee mugs, keyboards and trophies, and dodge your coworkers&#39; line of sight before the one-minute level timer runs out. Play solo or two-player co-op on TV and climb the global leaderboard.</p>
@@ -70,6 +70,7 @@
       <noscript>Nine to Thief needs JavaScript to play. It is a free stealth game for browser, mobile and Android TV.</noscript>
     </main>
     <canvas id="game" class="block h-dvh w-screen touch-none"></canvas>
+    <div id="vignette" class="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_center,transparent_55%,rgba(0,0,0,0.45)_100%)]"></div>
     <div id="ui" class="pointer-events-none fixed inset-0"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>

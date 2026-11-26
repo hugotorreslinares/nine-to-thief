@@ -21,6 +21,9 @@ import qrcode from 'qrcode-generator'
 import { Remote, type RemoteStatus } from './remote.ts'
 import { sendToy } from './toyLink.ts'
 import { surface, type Surface } from './surface.ts'
+import { addOffice, addPlant, tickDust } from './props.ts'
+import { addFixedContact, createMovingContact } from './contact.ts'
+import { carpetTexture, grainTexture } from './textures.ts'
 import { claimNick, cleanNick, fetchBoard, isTaken, loadNick, saveNick, submitScore } from './scores.ts'
 import { canSee, coopZoom, rayDistance, resolveCircle, turnToward, type Box, type Pt } from './logic.ts'
 
@@ -158,8 +161,13 @@ function renderPortraits(): Map<string, string> {
 const portraits = renderPortraits()
 
 const scene = new THREE.Scene()
-scene.background = new THREE.Color(0x15161c)
-scene.add(new THREE.HemisphereLight(0xffffff, 0x8a8a99, 1.7))
+// En la tele (GPU débil) el fondo es un color opaco: sin degradado ni viñeta de CSS que componer encima del canvas.
+if (LITE) {
+  scene.background = new THREE.Color(0x15161c)
+  document.getElementById('vignette')?.remove()
+}
+// Sin fondo propio: el canvas es transparente y detrás va el degradado de la página (ver index.html).
+scene.add(new THREE.HemisphereLight(0xfff6ea, 0x7f8399, 1.7)) // cielo cálido, rebote frío
 const sun = new THREE.DirectionalLight(0xfff2dd, 2)
 sun.position.set(MAP.w / 2 - 10, 26, MAP.d / 2 + 9)
 sun.target.position.set(MAP.w / 2, 0, MAP.d / 2)
@@ -235,36 +243,27 @@ for (const f of FURNITURE) {
   addBox(f.box, f.h, f.color)
   const fx = (f.box.minX + f.box.maxX) / 2
   const fz = (f.box.minZ + f.box.maxZ) / 2
-  if (f.kind === 'plant') {
-    addDetail(UNIT_CYLINDER, 0x5a3a22, [0.06, 0.4, 0.06], [fx, f.h + 0.2, fz])
-    addDetail(new THREE.IcosahedronGeometry(0.5, 0), 0x2f8f4e, [0.9, 1.1, 0.9], [fx, f.h + 0.75, fz])
-  } else if (f.kind === 'cooler') {
+  if (f.kind === 'cooler') {
     addDetail(UNIT_CYLINDER, 0x6ec6ff, [0.34, 0.45, 0.34], [fx, f.h + 0.225, fz])
   } else if (f.kind === 'copier') {
     addDetail(UNIT_BOX, 0x3a3d44, [1.45, 0.08, 1.05], [fx, f.h + 0.04, fz]) // tapa
     addDetail(UNIT_BOX, 0x22252b, [0.4, 0.06, 0.25], [fx + 0.4, f.h + 0.11, fz - 0.3]) // panel
     addDetail(UNIT_BOX, 0xf5f5f5, [0.5, 0.04, 0.7], [f.box.minX - 0.25, f.h * 0.6, fz]) // bandeja con papel
   }
-  if (f.kind !== 'desk') continue
-  // Monitor en la mitad opuesta a donde aparecen los objetos.
-  const cx = (f.box.minX + f.box.maxX) / 2
-  const cz = (f.box.minZ + f.box.maxZ) / 2
-  const w = f.box.maxX - f.box.minX
-  const d = f.box.maxZ - f.box.minZ
-  const along = w >= d
-  const screen: Box = along
-    ? { minX: cx - w / 4 - 0.25, maxX: cx - w / 4 + 0.25, minZ: cz - 0.04, maxZ: cz + 0.04 }
-    : { minX: cx - 0.04, maxX: cx + 0.04, minZ: cz - d / 4 - 0.25, maxZ: cz - d / 4 + 0.25 }
-  addBox(screen, 0.38, 0x22252b, f.h)
 }
+// Utilería: monitores y detalles de escritorio, alfombras, ventanas, pared... (src/props.ts)
+addOffice(solidParts, floorParts, scene)
 
-for (const [parts, casts] of [[floorParts, false], [solidParts, true]] as const) {
-  const world = mergeColored(parts as THREE.Mesh<THREE.BufferGeometry, Surface>[], 0.8)
+const carpet = { map: carpetTexture(), metersPerTile: 1 }
+const grain = { map: grainTexture(), metersPerTile: 1.5 }
+for (const [parts, casts, texture] of [[floorParts, false, carpet], [solidParts, true, grain]] as const) {
+  const world = mergeColored(parts as THREE.Mesh<THREE.BufferGeometry, Surface>[], 0.8, texture)
   if (!world) continue
   world.castShadow = casts
   world.receiveShadow = true
   scene.add(world)
 }
+addFixedContact(scene, FURNITURE.filter((f) => !isPushable(f)).map((f) => f.box)) // sombras de contacto de los muebles fijos
 
 // ---------- Estado ----------
 
@@ -330,8 +329,9 @@ function makeProp(f: Furniture): Chair {
   const d = f.box.maxZ - f.box.minZ
   piece(UNIT_BOX, f.color, [w, f.h, d], [0, f.h / 2, 0])
   if (f.kind === 'plant') {
-    piece(UNIT_CYLINDER, 0x5a3a22, [0.06, 0.4, 0.06], [0, f.h + 0.2, 0])
-    piece(new THREE.IcosahedronGeometry(0.5, 0), 0x2f8f4e, [0.9, 1.1, 0.9], [0, f.h + 0.75, 0])
+    const bits: THREE.Mesh[] = []
+    addPlant(bits, 0, 0, f.h)
+    g.add(...bits)
   } else piece(UNIT_CYLINDER, 0x6ec6ff, [0.34, 0.45, 0.34], [0, f.h + 0.225, 0])
   bakeChildren(g, 0.8)
   const home = { x: (f.box.minX + f.box.maxX) / 2, z: (f.box.minZ + f.box.maxZ) / 2 }
@@ -431,6 +431,12 @@ const allNpcs: readonly Npc[] = CHARACTERS.filter((c) => !c.hero).map((char, i) 
     route: undefined, wp: 0, lure: CONFERENCE, lureT: 0, freezeT: 0, blindT: 0, blindK: 1, seenT: 0, alert: 0,
   }
 })
+
+// Sombras de contacto de lo que se mueve: figuras, sillas, plantas y dispensadores (una sola malla).
+const updateContact = createMovingContact(scene, [
+  ...[...figures.values()].map((obj) => ({ obj, radius: 0.55 })),
+  ...chairs.map((c) => ({ obj: c.mesh, radius: c.radius + 0.25 })),
+])
 
 /** `stride` es la fase del paso mientras camina; sin ella la figura queda quieta. */
 function place(fig: THREE.Group, x: number, z: number, dir: number, stride?: number): void {
@@ -2225,6 +2231,7 @@ function placeHeadUi(): void {
 function frame(now: number): void {
   const dt = Math.min((now - last) / 1000, 0.05)
   last = now
+  tickDust(now)
   pollPad()
   if (phase !== 'playing') {
     for (const p of players) {
@@ -2282,6 +2289,7 @@ function frame(now: number): void {
   // El menú no necesita 60 fps: se dibuja a 30. Las sombras se actualizan en cuadros alternos.
   camera.updateMatrixWorld()
   placeHeadUi()
+  updateContact()
   frameCount++
   if (phase !== 'menu' || frameCount % 2 === 0) {
     renderer.shadowMap.needsUpdate = frameCount % 2 === 0

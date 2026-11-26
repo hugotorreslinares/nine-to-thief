@@ -275,7 +275,7 @@ export interface OfficeObject extends Pt {
 }
 
 /** Punto sobre el escritorio de un personaje: `a` a lo largo (monitor en negativo), `f` hacia su silla. */
-function onDesk(c: Character, [a, f]: readonly [number, number]): Pt & { readonly turn: number } {
+export function onDesk(c: Character, [a, f]: readonly [number, number]): Pt & { readonly turn: number } {
   const [x, z, w, d] = c.desk
   const along = w >= d
   const long = (along ? w : d) / 1.8
