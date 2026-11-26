@@ -1,0 +1,26 @@
+# Nine to Thief
+
+> Nine to Thief is a free-to-play isometric stealth game for web browser, mobile and Android TV. You sneak into an office, steal marked items (staplers, pencils, coffee mugs, keyboards, trophies...) and avoid your coworkers' line of sight within one minute per level. 16 playable characters, 10 levels, two-player co-op on TV, global leaderboard. No download needed. Available in English and Spanish. Linked to a collectible NFC art toy (Nine, the masked thief) that unlocks all 10 levels.
+
+Nine to Thief (Spanish: "Nine to Thief — roba la oficina sin que te vean") is a "stealth game", "office heist game" and "play-at-work browser game". The first two levels are free to play; the full 10 levels unlock with the Nine art toy. There are no ads.
+
+## Play
+- [Play in English](https://nine-to-thief.vercel.app/en/): the game, English interface
+- [Jugar en español](https://nine-to-thief.vercel.app/): el juego, interfaz en español
+- [Android TV app](https://nine-to-thief.vercel.app/tv/): free APK for Android TV / Google TV; phones work as controllers
+
+## Guides
+- [How to play (English)](https://nine-to-thief.vercel.app/how-to-play.html): controls, the 10 levels and items, characters, FAQ
+- [Cómo jugar (español)](https://nine-to-thief.vercel.app/como-jugar.html): controles, los 10 niveles y objetos, personajes, preguntas frecuentes
+
+## Facts
+- Genre: stealth, isometric, casual, office heist
+- Platforms: web browser (desktop and mobile), Android TV
+- Players: 1 (browser, mobile, TV) or 2 co-op (TV with two phones as controllers)
+- Controls: WASD / arrows to move, hold E to steal, Q for the character ability; touch joystick on mobile
+- Level time: 60 seconds
+- Price: free to play (levels 1–2); full game unlocked with the physical art toy
+- Languages: English, Spanish
+
+## Optional
+- [Privacy policy](https://nine-to-thief.vercel.app/privacidad.html)

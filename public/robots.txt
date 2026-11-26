@@ -1,3 +1,21 @@
+# Buscadores y asistentes de IA: todo permitido salvo /play/ (la URL del art toy es una credencial).
 User-agent: *
+User-agent: Googlebot
+User-agent: Bingbot
+User-agent: GPTBot
+User-agent: OAI-SearchBot
+User-agent: ChatGPT-User
+User-agent: ClaudeBot
+User-agent: Claude-SearchBot
+User-agent: Claude-User
+User-agent: PerplexityBot
+User-agent: Perplexity-User
+User-agent: Google-Extended
+User-agent: Applebot
+User-agent: Applebot-Extended
+User-agent: CCBot
 Allow: /
 Disallow: /play/
+Disallow: /pad.html
+
+Sitemap: https://nine-to-thief.vercel.app/sitemap.xml
