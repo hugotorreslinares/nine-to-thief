@@ -3,7 +3,8 @@ name: Android APK
 on:
   push:
     branches: [main]
-    paths-ignore: ['**.md']
+    # La app es un envoltorio de la web: solo se recompila si cambia el proyecto Android.
+    paths: ['android/**', 'capacitor.config.ts', 'package.json', 'package-lock.json', '.github/workflows/android.yml']
   workflow_dispatch:
 
 permissions:
