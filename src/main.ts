@@ -22,6 +22,7 @@ import { Remote, type RemoteStatus } from './remote.ts'
 import { sendToy } from './toyLink.ts'
 import { surface, type Surface } from './surface.ts'
 import { addOffice, addPlant, tickDust } from './props.ts'
+import { burstConfetti, burstSparks, fx, tickFx } from './fx.ts'
 import { addFixedContact, createMovingContact } from './contact.ts'
 import { carpetTexture, grainTexture } from './textures.ts'
 import { claimNick, cleanNick, fetchBoard, isTaken, loadNick, saveNick, submitScore } from './scores.ts'
@@ -161,6 +162,7 @@ function renderPortraits(): Map<string, string> {
 const portraits = renderPortraits()
 
 const scene = new THREE.Scene()
+scene.add(fx)
 // En la tele (GPU débil) el fondo es un color opaco: sin degradado ni viñeta de CSS que componer encima del canvas.
 if (LITE) {
   scene.background = new THREE.Color(0x15161c)
@@ -404,6 +406,7 @@ relayout() // cada vez que se abre el juego, el reparto es distinto
 
 /** Objetos recién robados, con los segundos que llevan desapareciendo. */
 const vanishing = new Map<Item, number>()
+const fxPoint = new THREE.Vector3()
 const VANISH_SECONDS = 0.4
 
 function makeCone(): Npc['cone'] {
@@ -1521,6 +1524,7 @@ function bust(reason: string, captured: boolean, culprit: Player = player): void
 
 function win(): void {
   phase = 'won'
+  burstConfetti(fxPoint.set(player.x, 0, player.z))
   clears = markCleared(clears, level, crew.length > 1)
   sfx.win()
   const spare = Math.ceil(timeLeft)
@@ -2125,6 +2129,7 @@ function update(dt: number): void {
     p.grab = 0
     if (!items.includes(target)) continue // el otro jugador se lo llevó primero
     vanishing.set(target, 0)
+    burstSparks(target.mesh.getWorldPosition(fxPoint))
     target.marker.visible = false
     items = items.filter((i) => i !== target)
     decoys = Math.min(MAX_DECOYS, decoys + 1)
@@ -2234,6 +2239,7 @@ function frame(now: number): void {
   const dt = Math.min((now - last) / 1000, 0.05)
   last = now
   tickDust(now)
+  tickFx(dt)
   pollPad()
   if (phase !== 'playing') {
     for (const p of players) {
