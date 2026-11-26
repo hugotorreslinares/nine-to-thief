@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
-import { bakeChildren, outlineHull } from './bake.ts'
+import { bakeChildren } from './bake.ts'
 import type { Look } from './data.ts'
 import { LITE } from './device.ts'
 import { surface, type Surface } from './surface.ts'
@@ -53,15 +53,6 @@ interface ModelRig {
 }
 const MODELS = new WeakMap<THREE.Group, ModelRig>()
 
-/** Grosor del contorno en metros (cámara ortográfica: se ve igual a cualquier zoom). */
-const OUTLINE = 0.02
-
-/** Añade a `parent` el casco de contorno de las geometrías dadas (ya en el espacio de `parent`). */
-function addOutline(parent: THREE.Object3D, geometries: readonly THREE.BufferGeometry[], thickness: number): void {
-  const hull = outlineHull(geometries, thickness)
-  if (hull) parent.add(hull)
-}
-
 /**
  * Carga un modelo GLB como figura: mira a +x como las demás y mide `height` metros.
  * Devuelve undefined si no se pudo cargar: el juego usa entonces la figura de piezas.
@@ -83,20 +74,6 @@ export async function loadModelFigure(url: string, height: number): Promise<THRE
     facing.add(gltf.scene)
     lean.add(facing)
     g.add(lean)
-    if (!LITE) {
-      // Contorno de todo salvo las piernas (se animan por separado): un solo casco dentro de `lean`, que se inclina con el cuerpo.
-      const legNames = new Set(['leg_l', 'leg_r'])
-      const geos: THREE.BufferGeometry[] = []
-      lean.updateMatrixWorld(true)
-      const toLean = lean.matrixWorld.clone().invert()
-      gltf.scene.traverse((o) => {
-        if (!(o instanceof THREE.Mesh)) return
-        for (let p: THREE.Object3D | null = o; p; p = p.parent) if (legNames.has(p.name)) return
-        geos.push((o.geometry as THREE.BufferGeometry).clone().applyMatrix4(new THREE.Matrix4().multiplyMatrices(toLean, o.matrixWorld)))
-      })
-      addOutline(lean, geos, OUTLINE)
-      for (const geo of geos) geo.dispose()
-    }
     const legs = ['leg_l', 'leg_r'].flatMap((name) => gltf.scene.getObjectByName(name) ?? [])
     MODELS.set(g, { lean, legs })
     return g
@@ -328,15 +305,6 @@ export function buildFigure(look: Look): THREE.Group {
   bakeChildren(g, 0.4)
   for (const group of [mask, bang, ...LIMBS.get(g)?.legs ?? [], ...LIMBS.get(g)?.arms ?? []]) bakeChildren(group, 0.4)
   const scale = look.scale ?? 1
-  // Contorno solo del cuerpo y la cabeza (parte fija, 1 llamada de dibujo): un casco fundido no seguiría a brazos y piernas al moverse.
-  if (!LITE) {
-    // Proxy de baja resolución (~200 tris) en vez de la geometría fundida (~4k): cabeza (algo mayor para cubrir el pelo) y torso/falda.
-    const head = new THREE.SphereGeometry(1, 12, 8).scale(0.44, 0.42, 0.46).translate(0, HEAD_Y + 0.02, 0)
-    const torso = new THREE.CylinderGeometry(0.2 * wide, (look.skirt ? 0.34 : 0.26) * wide, look.skirt ? 0.6 : 0.45, 8).translate(0, look.skirt ? 0.6 : 0.58, 0)
-    addOutline(g, [head, torso], OUTLINE / scale)
-    head.dispose()
-    torso.dispose()
-  }
   g.scale.setScalar(scale)
   BASE_SCALE.set(g, scale)
   return g
