@@ -7,6 +7,7 @@ Nine to Thief (Spanish: "Nine to Thief — roba la oficina sin que te vean") is 
 ## Play
 - [Play in English](https://nine-to-thief.vercel.app/en/): the game, English interface
 - [Jugar en español](https://nine-to-thief.vercel.app/): el juego, interfaz en español
+- [Nine to Thief on itch.io](https://mrmonomalo.itch.io/nine-to-thief): official game page on itch.io
 - [Android TV app](https://nine-to-thief.vercel.app/tv/): free APK for Android TV / Google TV; phones work as controllers
 
 ## Guides
