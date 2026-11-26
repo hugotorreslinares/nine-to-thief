@@ -767,12 +767,12 @@ ui.innerHTML = `
     <p id="clears" class="ink hidden text-center text-base text-sky-300 md:text-xl"></p>
     <p id="challenge" class="ink hidden text-center text-lg text-pink-400 md:text-2xl"></p>
     <div class="flex flex-wrap items-center justify-center gap-2">
-      ${SUPPORT_URL ? `<a id="supportBtn" href="${SUPPORT_URL}" target="_blank" rel="noopener noreferrer" class="ink cursor-pointer rounded-lg border-2 border-black bg-sky-500 px-4 py-2 text-lg">${t('💛 APÓYAME · $5.000')}</a>` : ''}
+      ${SUPPORT_URL ? `<a id="supportBtn" href="${SUPPORT_URL}" target="_blank" rel="noopener noreferrer" class="ink cursor-pointer rounded-lg border-2 border-neutral-600 bg-neutral-800 hover:border-yellow-300 px-4 py-2 text-lg">${t('💛 APÓYAME · $5.000')}</a>` : ''}
       ${PREORDER_URL ? `<button id="preorderBtn" type="button" class="ink cursor-pointer rounded-lg border-2 border-black bg-yellow-400 px-4 py-2 text-lg text-black [text-shadow:none]">${t('🛒 PREVENTA')}</button>` : ''}
-      <button id="waitBtn" class="ink cursor-pointer rounded-lg border-2 border-black bg-pink-500 px-4 py-2 text-lg">${t('🔔 QUIERO MI ART TOY')}</button>
-      <button id="fbBtn" class="ink cursor-pointer rounded-lg border-2 border-black bg-emerald-500 px-4 py-2 text-lg">${t('💬 OPINIÓN')}</button>
-      <button id="muteBtn" class="ink cursor-pointer rounded-lg border-2 border-black bg-neutral-700 px-4 py-2 text-lg"></button>
-      <button id="langBtn" class="ink cursor-pointer rounded-lg border-2 border-black bg-neutral-700 px-4 py-2 text-lg">${lang === 'es' ? 'ENGLISH' : 'ESPAÑOL'}</button>
+      <button id="waitBtn" class="ink cursor-pointer rounded-lg border-2 border-yellow-300 bg-neutral-900 text-yellow-300 hover:bg-neutral-800 px-4 py-2 text-lg">${t('🔔 QUIERO MI ART TOY')}</button>
+      <button id="fbBtn" class="ink cursor-pointer rounded-lg border-2 border-neutral-600 bg-neutral-800 hover:border-yellow-300 px-4 py-2 text-lg">${t('💬 OPINIÓN')}</button>
+      <button id="muteBtn" class="ink cursor-pointer rounded-lg border-2 border-neutral-600 bg-neutral-800 hover:border-yellow-300 px-4 py-2 text-lg"></button>
+      <button id="langBtn" class="ink cursor-pointer rounded-lg border-2 border-neutral-600 bg-neutral-800 hover:border-yellow-300 px-4 py-2 text-lg">${lang === 'es' ? 'ENGLISH' : 'ESPAÑOL'}</button>
     </div>
     <dialog id="signup" class="pointer-events-auto m-auto w-full max-w-sm rounded-xl border-2 border-yellow-300 bg-neutral-900 p-5 text-white backdrop:bg-black/70">
       <p class="mb-1 text-3xl text-yellow-300">${t('ART TOY NUEVO')}</p>
@@ -784,7 +784,7 @@ ui.innerHTML = `
         <button id="signupBtn" class="font-gta cursor-pointer rounded bg-yellow-300 px-4 py-2 text-xl text-black disabled:opacity-50">${t('EMPEZAR A ROBAR')}</button>
       </form>
     </dialog>
-    <button id="tvLinkBtn" class="ink hidden cursor-pointer rounded-lg border-2 border-black bg-emerald-500 px-4 py-2 text-lg">${t('📺 JUGAR EN LA TELE')}</button>
+    <button id="tvLinkBtn" class="ink hidden cursor-pointer rounded-lg border-2 border-neutral-600 bg-neutral-800 hover:border-yellow-300 px-4 py-2 text-lg">${t('📺 JUGAR EN LA TELE')}</button>
     <dialog id="tvLink" class="pointer-events-auto m-auto w-full max-w-sm rounded-xl border-2 border-yellow-300 bg-neutral-900 p-5 text-white backdrop:bg-black/70">
       <p class="mb-1 text-3xl text-yellow-300">${t('📺 JUGAR EN LA TELE')}</p>
       <p class="mb-3 font-sans text-sm text-neutral-300">${t('Abre la app en tu tele y escribe aquí el código de 5 letras que muestra en la pantalla de inicio.')}</p>
@@ -799,7 +799,7 @@ ui.innerHTML = `
     </dialog>
     <div class="flex flex-wrap items-center justify-center gap-2">
       <input id="nick" maxlength="12" autocomplete="nickname" placeholder="${t('Tu apodo para el tablón')}" class="rounded-lg border-2 border-neutral-600 bg-neutral-900 px-3 py-2 font-sans text-base text-white select-text" />
-      <button id="boardBtn" class="ink cursor-pointer rounded-lg border-2 border-black bg-yellow-400 px-4 py-2 text-lg">${t('🏆 TABLÓN')}</button>
+      <button id="boardBtn" class="ink cursor-pointer rounded-lg border-2 border-neutral-600 bg-neutral-800 hover:border-yellow-300 px-4 py-2 text-lg">${t('🏆 TABLÓN')}</button>
     </div>
     <p id="nickStatus" class="min-h-5 font-sans text-sm text-neutral-300"></p>
     <dialog id="board" class="pointer-events-auto m-auto w-full max-w-sm rounded-xl border-2 border-yellow-300 bg-neutral-900 p-5 text-white backdrop:bg-black/70">
@@ -810,7 +810,7 @@ ui.innerHTML = `
         <button class="cursor-pointer rounded bg-yellow-300 px-4 py-1 text-lg text-black">${t('CERRAR')}</button>
       </form>
     </dialog>
-    <button id="installBtn" class="ink hidden cursor-pointer rounded-lg border-2 border-black bg-emerald-500 px-4 py-2 text-lg">${t('＋ AÑADIR A PANTALLA DE INICIO')}</button>
+    <button id="installBtn" class="ink hidden cursor-pointer rounded-lg border-2 border-neutral-600 bg-neutral-800 hover:border-yellow-300 px-4 py-2 text-lg">${t('＋ AÑADIR A PANTALLA DE INICIO')}</button>
     <dialog id="installHelp" class="pointer-events-auto m-auto max-w-sm rounded-xl border-2 border-yellow-300 bg-neutral-900 p-5 font-sans text-white backdrop:bg-black/70">
       <p class="font-gta mb-3 text-2xl text-yellow-300">${t('Añadir a pantalla de inicio')}</p>
       <ol class="list-decimal space-y-2 pl-5 text-base">
@@ -833,7 +833,7 @@ ui.innerHTML = `
         <svg viewBox="0 0 24 24" class="size-5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor"/></svg>
         ${t('Creado por @mrmonomalo')}
       </a>
-      <a href="/tv/" class="rounded-full border-2 border-black bg-emerald-500 px-4 py-2 text-base font-bold text-white hover:brightness-110">📺 ${t('Descargar para Android TV')}</a>
+      <a href="/tv/" class="rounded-full border-2 border-neutral-600 bg-neutral-800 hover:border-yellow-300 px-4 py-2 text-base font-bold text-white hover:brightness-110">📺 ${t('Descargar para Android TV')}</a>
       <p>${t('Un juego y una colección de art toys. Sígueme en Instagram para ver los próximos personajes.')}</p>
       <p class="text-xs text-neutral-500">
         ${t('Código abierto en')} <a href="https://github.com/hugotorreslinares/nine-to-thief" target="_blank" rel="noopener noreferrer" class="text-sky-300 underline hover:text-sky-200">GitHub</a>
