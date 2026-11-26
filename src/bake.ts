@@ -59,11 +59,47 @@ export function mergeColored(
 }
 
 /** Sustituye las mallas hijas directas de un grupo por una sola fundida; las marcadas con userData.keep se quedan. */
-export function bakeChildren(group: THREE.Object3D, roughness: number): void {
+export function bakeChildren(group: THREE.Object3D, roughness: number): THREE.Mesh | undefined {
   const parts = group.children.filter((c): c is THREE.Mesh<THREE.BufferGeometry, THREE.MeshStandardMaterial | THREE.MeshLambertMaterial> => c instanceof THREE.Mesh && c.userData.keep !== true)
   const merged = mergeColored(parts, roughness)
-  if (!merged) return
+  if (!merged) return undefined
   merged.castShadow = true
   group.remove(...parts)
   group.add(merged)
+  return merged
+}
+
+const OUTLINE_MATERIAL = new THREE.MeshBasicMaterial({ color: 0x0b1020, side: THREE.BackSide })
+
+/**
+ * Casco de contorno tipo vinilo: una sola malla con la geometría empujada `thickness` metros a lo largo
+ * de normales suavizadas (las de vértices coincidentes se promedian para que no se abran grietas) y caras
+ * invertidas. Las geometrías deben llegar ya en el espacio donde vivirá el casco. Con cámara ortográfica
+ * el grosor en metros se ve igual a cualquier zoom. No usar en LITE (lo decide quien llama).
+ */
+export function outlineHull(geometries: readonly THREE.BufferGeometry[], thickness: number): THREE.Mesh | undefined {
+  const parts = geometries.map((g) => (g.index ? g.toNonIndexed() : g.clone()))
+  for (const part of parts) for (const name of Object.keys(part.attributes)) if (name !== 'position' && name !== 'normal') part.deleteAttribute(name)
+  const geometry = mergeGeometries(parts)
+  for (const part of parts) part.dispose()
+  if (!geometry) return undefined
+  const pos = geometry.getAttribute('position')
+  const normal = geometry.getAttribute('normal')
+  if (!normal) throw new Error('outlineHull: la geometría no tiene normales')
+  const key = (i: number): string => `${Math.round(pos.getX(i) * 1e4)},${Math.round(pos.getY(i) * 1e4)},${Math.round(pos.getZ(i) * 1e4)}`
+  const sums = new Map<string, THREE.Vector3>()
+  for (let i = 0; i < pos.count; i++) {
+    const k = key(i)
+    const sum = sums.get(k) ?? new THREE.Vector3()
+    sums.set(k, sum.add(new THREE.Vector3().fromBufferAttribute(normal, i)))
+  }
+  const out = new Float32Array(pos.count * 3)
+  const push = new THREE.Vector3()
+  for (let i = 0; i < pos.count; i++) {
+    push.copy(sums.get(key(i)) ?? new THREE.Vector3()).normalize().multiplyScalar(thickness)
+    out.set([pos.getX(i) + push.x, pos.getY(i) + push.y, pos.getZ(i) + push.z], i * 3)
+  }
+  geometry.setAttribute('position', new THREE.BufferAttribute(out, 3))
+  geometry.deleteAttribute('normal')
+  return new THREE.Mesh(geometry, OUTLINE_MATERIAL)
 }

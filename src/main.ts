@@ -9,7 +9,7 @@ import { loadClears, markCleared } from './clears.ts'
 import { PREORDER_URL, SUPPORT_URL } from './preorder.ts'
 import { PRESALE_LIMIT } from './presale.ts'
 import { LITE, TOUCH, TV } from './device.ts'
-import { buildFigure, loadModelFigure, reactFigure, setMask, swingLimbs } from './figure.ts'
+import { buildFigure, baseScale, idleFigure, loadModelFigure, reactFigure, setMask, swingLimbs } from './figure.ts'
 import { lang, setLang, t } from './i18n.ts'
 import { COUNTS, DEMO_COUNTS, LEVELS } from './levels.ts'
 import './track.ts'
@@ -443,6 +443,7 @@ function place(fig: THREE.Group, x: number, z: number, dir: number, stride?: num
   fig.position.set(x, stride === undefined ? 0 : Math.abs(Math.sin(stride)) * 0.05, z)
   fig.rotation.y = -dir
   swingLimbs(fig, stride === undefined ? 0 : Math.sin(stride) * 0.6)
+  fig.scale.y = baseScale(fig) // restablece la respiración de `idleFigure`
 }
 // La figura del protagonista está en escena solo mientras se juega con él.
 for (const c of CHARACTERS) {
@@ -1879,6 +1880,7 @@ function updateNpc(n: Npc, dt: number): void {
   }
   n.dir = turnToward(n.dir, want, 5 * dt)
   place(n.fig, n.x, n.z, n.dir, walking ? clock * 7 + n.phase : undefined)
+  if (!walking) idleFigure(n.fig, clock, n.phase, LITE ? 0 : Math.round(n.phase / 1.7) % 4)
 }
 
 function updateCone(n: Npc, range: number): void {

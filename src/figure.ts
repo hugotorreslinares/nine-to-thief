@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
-import { bakeChildren } from './bake.ts'
+import { bakeChildren, outlineHull } from './bake.ts'
 import type { Look } from './data.ts'
 import { LITE } from './device.ts'
 import { surface, type Surface } from './surface.ts'
@@ -53,6 +53,15 @@ interface ModelRig {
 }
 const MODELS = new WeakMap<THREE.Group, ModelRig>()
 
+/** Grosor del contorno en metros (cámara ortográfica: se ve igual a cualquier zoom). */
+const OUTLINE = 0.02
+
+/** Añade a `parent` el casco de contorno de las geometrías dadas (ya en el espacio de `parent`). */
+function addOutline(parent: THREE.Object3D, geometries: readonly THREE.BufferGeometry[], thickness: number): void {
+  const hull = outlineHull(geometries, thickness)
+  if (hull) parent.add(hull)
+}
+
 /**
  * Carga un modelo GLB como figura: mira a +x como las demás y mide `height` metros.
  * Devuelve undefined si no se pudo cargar: el juego usa entonces la figura de piezas.
@@ -74,6 +83,20 @@ export async function loadModelFigure(url: string, height: number): Promise<THRE
     facing.add(gltf.scene)
     lean.add(facing)
     g.add(lean)
+    if (!LITE) {
+      // Contorno de todo salvo las piernas (se animan por separado): un solo casco dentro de `lean`, que se inclina con el cuerpo.
+      const legNames = new Set(['leg_l', 'leg_r'])
+      const geos: THREE.BufferGeometry[] = []
+      lean.updateMatrixWorld(true)
+      const toLean = lean.matrixWorld.clone().invert()
+      gltf.scene.traverse((o) => {
+        if (!(o instanceof THREE.Mesh)) return
+        for (let p: THREE.Object3D | null = o; p; p = p.parent) if (legNames.has(p.name)) return
+        geos.push((o.geometry as THREE.BufferGeometry).clone().applyMatrix4(new THREE.Matrix4().multiplyMatrices(toLean, o.matrixWorld)))
+      })
+      addOutline(lean, geos, OUTLINE)
+      for (const geo of geos) geo.dispose()
+    }
     const legs = ['leg_l', 'leg_r'].flatMap((name) => gltf.scene.getObjectByName(name) ?? [])
     MODELS.set(g, { lean, legs })
     return g
@@ -90,6 +113,10 @@ export function setMask(fig: THREE.Group, on: boolean): void {
   if (!mask) throw new Error('Figura sin antifaz registrado')
   mask.visible = on
 }
+
+/** Escala base de cada figura (look.scale): la respiración se aplica sobre ella, no sobre 1. */
+const BASE_SCALE = new WeakMap<THREE.Group, number>()
+export const baseScale = (fig: THREE.Group): number => BASE_SCALE.get(fig) ?? 1
 
 /** Balancea piernas y brazos opuestos; ángulo 0 = quieto. */
 export function swingLimbs(fig: THREE.Group, angle: number): void {
@@ -108,6 +135,25 @@ export function swingLimbs(fig: THREE.Group, angle: number): void {
   limbs.legs[1].rotation.z = -angle
   limbs.arms[0].rotation.z = -angle * 0.8
   limbs.arms[1].rotation.z = angle * 0.8
+}
+
+/**
+ * Reposo de un personaje quieto: respira siempre y, según `variant` (0 y 3 solo respiran, 1 teclea, 2 bebe café),
+ * hace un gesto. Se llama justo después de `swingLimbs(fig, 0)`, que deja la pose neutra; `reactFigure` manda sobre los brazos.
+ */
+export function idleFigure(fig: THREE.Group, clock: number, phase: number, variant: number): void {
+  fig.scale.y = baseScale(fig) * (1 + Math.sin(clock * 1.8 + phase) * 0.012)
+  const limbs = LIMBS.get(fig)
+  if (!limbs || MODELS.has(fig)) return
+  if (variant === 1) {
+    // Teclear: brazos adelantados con vaivén corto y rápido, en contrafase.
+    limbs.arms[0].rotation.z = 0.9 + Math.sin(clock * 18 + phase) * 0.1
+    limbs.arms[1].rotation.z = 0.9 - Math.sin(clock * 18 + phase) * 0.1
+  } else if (variant === 2) {
+    // Café: cada 7 s el brazo sube y baja despacio.
+    const t = ((clock + phase * 3) % 7) / 7
+    if (t < 0.35) limbs.arms[0].rotation.z = Math.sin((t / 0.35) * Math.PI) * 1.7
+  }
 }
 
 /** Sorpresa de 0 (nada) a 1 (alarmado): abre la boca, levanta los brazos y muestra un "!" que rebota. No afecta a los modelos 3D. */
@@ -279,7 +325,19 @@ export function buildFigure(look: Look): THREE.Group {
   }
 
   // Una llamada de dibujo por pieza móvil (cuerpo, cada pierna y brazo, antifaz, signo) en vez de ~50 mallas sueltas.
-  for (const group of [g, mask, bang, ...LIMBS.get(g)?.legs ?? [], ...LIMBS.get(g)?.arms ?? []]) bakeChildren(group, 0.4)
-  g.scale.setScalar(look.scale ?? 1)
+  bakeChildren(g, 0.4)
+  for (const group of [mask, bang, ...LIMBS.get(g)?.legs ?? [], ...LIMBS.get(g)?.arms ?? []]) bakeChildren(group, 0.4)
+  const scale = look.scale ?? 1
+  // Contorno solo del cuerpo y la cabeza (parte fija, 1 llamada de dibujo): un casco fundido no seguiría a brazos y piernas al moverse.
+  if (!LITE) {
+    // Proxy de baja resolución (~200 tris) en vez de la geometría fundida (~4k): cabeza (algo mayor para cubrir el pelo) y torso/falda.
+    const head = new THREE.SphereGeometry(1, 12, 8).scale(0.44, 0.42, 0.46).translate(0, HEAD_Y + 0.02, 0)
+    const torso = new THREE.CylinderGeometry(0.2 * wide, (look.skirt ? 0.34 : 0.26) * wide, look.skirt ? 0.6 : 0.45, 8).translate(0, look.skirt ? 0.6 : 0.58, 0)
+    addOutline(g, [head, torso], OUTLINE / scale)
+    head.dispose()
+    torso.dispose()
+  }
+  g.scale.setScalar(scale)
+  BASE_SCALE.set(g, scale)
   return g
 }
