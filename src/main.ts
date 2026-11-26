@@ -24,7 +24,7 @@ import { surface, type Surface } from './surface.ts'
 import { addOffice, addPlant, tickDust } from './props.ts'
 import { burstConfetti, burstSparks, fx, tickFx } from './fx.ts'
 import { addFixedContact, createMovingContact } from './contact.ts'
-import { carpetTexture, grainTexture } from './textures.ts'
+import { carpetTexture } from './textures.ts'
 import { claimNick, cleanNick, fetchBoard, isTaken, loadNick, saveNick, submitScore } from './scores.ts'
 import { canSee, coopZoom, rayDistance, resolveCircle, turnToward, type Box, type Pt } from './logic.ts'
 
@@ -257,8 +257,7 @@ for (const f of FURNITURE) {
 addOffice(solidParts, floorParts, scene)
 
 const carpet = { map: carpetTexture(), metersPerTile: 1 }
-const grain = { map: grainTexture(), metersPerTile: 1.5 }
-for (const [parts, casts, texture] of [[floorParts, false, carpet], [solidParts, true, grain]] as const) {
+for (const [parts, casts, texture] of [[floorParts, false, carpet], [solidParts, true, undefined]] as const) {
   const world = mergeColored(parts as THREE.Mesh<THREE.BufferGeometry, Surface>[], 0.8, texture)
   if (!world) continue
   world.castShadow = casts

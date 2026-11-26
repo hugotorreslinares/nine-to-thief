@@ -37,7 +37,3 @@ function makeTexture(seed: number, shade: (x: number, y: number, rand: () => num
 /** Alfombra de oficina: grano fino con una ligera trama de hilos cada 4 px. */
 export const carpetTexture = (): THREE.CanvasTexture =>
   makeTexture(7, (x, y, rand) => 0.65 * rand() + 0.35 * (((x >> 2) + (y >> 2)) & 1))
-
-/** Yeso y madera suaves: grano discreto con vetas horizontales (periódicas en x). */
-export const grainTexture = (): THREE.CanvasTexture =>
-  makeTexture(11, (x, y, rand) => 0.6 * rand() + 0.4 * (0.5 + 0.5 * Math.sin((y * 2 * Math.PI) / 8 + 2 * Math.sin((x * 2 * Math.PI) / SIZE))))
