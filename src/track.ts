@@ -1,8 +1,6 @@
 // Eventos personalizados de Vercel Analytics: dónde toca la gente en el menú y en los diálogos.
 // Un solo listener delegado: añadir un botón al seguimiento es añadir su id aquí.
 
-export {}
-
 declare global {
   interface Window {
     va?: (command: 'event', payload: { name: string; data?: Record<string, string | number> }) => void
@@ -30,12 +28,36 @@ const EVENTS: Readonly<Record<string, string>> = {
   menuBtn: 'back_to_menu_click',
 }
 
+const SOURCE_KEY = 'n2t_src'
+
+/** Origen de la visita: `?utm_source=`, `?ref=` o el dominio de referencia. Se fija en la primera página y dura la pestaña. */
+function visitSource(): string {
+  try {
+    const saved = sessionStorage.getItem(SOURCE_KEY)
+    if (saved) return saved
+    const params = new URLSearchParams(location.search)
+    const referrer = document.referrer ? new URL(document.referrer).hostname : ''
+    const source = (params.get('utm_source') ?? params.get('ref') ?? referrer ?? '').slice(0, 40) || 'direct'
+    sessionStorage.setItem(SOURCE_KEY, source)
+    return source
+  } catch {
+    return 'direct'
+  }
+}
+
+const source = visitSource()
+
+/** Evento con su origen, para saber qué canal trae jugadores que de verdad juegan. */
+export function track(name: string, data: Readonly<Record<string, string | number>> = {}): void {
+  window.va?.('event', { name, data: { ...data, src: source } })
+}
+
 document.addEventListener(
   'click',
   (event) => {
     const target = event.target instanceof Element ? event.target.closest('[id]') : null
     const name = target ? EVENTS[target.id] : undefined
-    if (name) window.va?.('event', { name })
+    if (name) track(name)
   },
   true,
 )

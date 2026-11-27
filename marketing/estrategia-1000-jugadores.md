@@ -296,3 +296,17 @@ Con estos cinco pasos, en 2 a 4 semanas habrá datos propios para decidir si el 
 - ¿Cuál es la audiencia principal: Colombia, Latinoamérica o también inglés?
 
 Con tus respuestas puedo convertir este informe en un plan semanal con tareas concretas y empezar por la medición y la mecánica de compartir.
+
+## Medición implementada
+
+Cada evento de Vercel Analytics lleva `src` (de `?utm_source=`, `?ref=` o el dominio de referencia; fija por pestaña). Eventos nuevos: `level_start`, `level_win`, `level_lose` (con `level`).
+
+Define "jugador" = `level_start` de un visitante. Enlaces por canal (cambia `utm_source`):
+
+- WhatsApp: `https://nine-to-thief.vercel.app/?utm_source=whatsapp`
+- Reddit: `?utm_source=reddit`
+- TikTok / Reels: `?utm_source=tiktok`
+- Meta Ads: `?utm_source=meta`
+- itch.io: `?utm_source=itch`
+
+En Vercel Analytics: Events → `level_start`, filtra por propiedad `src`.

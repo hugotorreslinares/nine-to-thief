@@ -12,7 +12,7 @@ import { LITE, TOUCH, TV } from './device.ts'
 import { buildFigure, baseScale, idleFigure, loadModelFigure, reactFigure, setMask, swingLimbs } from './figure.ts'
 import { lang, setLang, t } from './i18n.ts'
 import { COUNTS, DEMO_COUNTS, LEVELS } from './levels.ts'
-import './track.ts'
+import { track } from './track.ts'
 import { FRESH, MAX_STARS, caught, steal, type Progress } from './progress.ts'
 import { PlayError, fetchPresaleLeft, close, idle, joinWaitlist, open, register, report, sendFeedback, type Account } from './session.ts'
 import { PAD_BUTTON, applyPick, type Picks } from './padState.ts'
@@ -1508,11 +1508,13 @@ function startLevel(): void {
   dom.banner.classList.replace('flex', 'hidden')
   dom.hud.classList.remove('hidden')
   phase = 'playing'
+  track('level_start', { level })
 }
 
 /** `captured`: lo vio un vigilante. Suma una estrella; a la quinta se pierde un nivel. */
 function bust(reason: string, captured: boolean, culprit: Player = player): void {
   phase = 'busted'
+  track('level_lose', { level })
   sfx.alarm()
   let text = reason
   if (captured) {
@@ -1542,6 +1544,7 @@ function bust(reason: string, captured: boolean, culprit: Player = player): void
 
 function win(): void {
   phase = 'won'
+  track('level_win', { level })
   burstConfetti(fxPoint.set(player.x, 0, player.z))
   clears = markCleared(clears, level, crew.length > 1)
   sfx.win()
