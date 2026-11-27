@@ -50,6 +50,20 @@ const source = visitSource()
 /** Evento con su origen, para saber qué canal trae jugadores que de verdad juegan. */
 export function track(name: string, data: Readonly<Record<string, string | number>> = {}): void {
   window.va?.('event', { name, data: { ...data, src: source } })
+  if (name === 'level_start') countPlayer()
+}
+
+const ID_KEY = 'n2t_id'
+
+/** Cuenta al jugador (id anónimo del navegador) en el servidor; falla en silencio, es solo estadística. */
+function countPlayer(): void {
+  try {
+    const id = localStorage.getItem(ID_KEY) ?? crypto.randomUUID()
+    localStorage.setItem(ID_KEY, id)
+    void fetch('/api/stats', { method: 'POST', keepalive: true, headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id, src: source }) }).catch(() => undefined)
+  } catch {
+    // sin localStorage no hay id estable: no se cuenta
+  }
 }
 
 document.addEventListener(
