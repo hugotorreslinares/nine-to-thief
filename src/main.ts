@@ -22,7 +22,7 @@ import { Remote, type RemoteStatus } from './remote.ts'
 import { sendToy } from './toyLink.ts'
 import { surface, type Surface } from './surface.ts'
 import { addOffice, addPlant, tickDust } from './props.ts'
-import { burstConfetti, burstSparks, fx, tickFx } from './fx.ts'
+import { burstConfetti, burstSparks, fx, puffDust, tickFx } from './fx.ts'
 import { addFixedContact, createMovingContact } from './contact.ts'
 import { STORIES } from './stories.ts'
 import { carpetTexture } from './textures.ts'
@@ -407,6 +407,20 @@ relayout() // cada vez que se abre el juego, el reparto es distinto
 /** Objetos recién robados, con los segundos que llevan desapareciendo. */
 const vanishing = new Map<Item, number>()
 const fxPoint = new THREE.Vector3()
+const SHAKE_SECONDS = 0.35
+let shakeT = 0
+
+/** Texto que sube y se desvanece sobre un punto del mundo (CSS: float-up). */
+function floatText(world: THREE.Vector3, text: string): void {
+  const p = world.clone().project(camera)
+  const label = document.createElement('div')
+  label.className = 'float-up ink pointer-events-none fixed z-30 text-3xl text-yellow-300'
+  label.style.left = `${((p.x + 1) / 2) * innerWidth}px`
+  label.style.top = `${((1 - p.y) / 2) * innerHeight}px`
+  label.textContent = text
+  label.addEventListener('animationend', () => label.remove())
+  document.body.appendChild(label)
+}
 const VANISH_SECONDS = 0.4
 
 function makeCone(): Npc['cone'] {
@@ -1514,6 +1528,7 @@ function startLevel(): void {
 /** `captured`: lo vio un vigilante. Suma una estrella; a la quinta se pierde un nivel. */
 function bust(reason: string, captured: boolean, culprit: Player = player): void {
   phase = 'busted'
+  if (captured) shakeT = SHAKE_SECONDS
   track('level_lose', { level })
   sfx.alarm()
   let text = reason
@@ -2050,6 +2065,7 @@ function update(dt: number): void {
     const mz = -ix - iy
     const moving = !grabbing && (mx !== 0 || mz !== 0)
     if (moving) {
+      if (frameCount % 6 === 0) puffDust(p.x, p.z)
       const len = Math.hypot(mx, mz)
       const speed = BASE_SPEED * (p.char.speed ?? 1) * (p.dashT > 0 ? p.dashK : 1)
       let next = resolveCircle(p.x + (mx / len) * speed * dt, p.z + (mz / len) * speed * dt, PLAYER_R, SOLID)
@@ -2151,6 +2167,7 @@ function update(dt: number): void {
     if (!items.includes(target)) continue // el otro jugador se lo llevó primero
     vanishing.set(target, 0)
     burstSparks(target.mesh.getWorldPosition(fxPoint))
+    floatText(fxPoint, '+1')
     target.marker.visible = false
     items = items.filter((i) => i !== target)
     decoys = Math.min(MAX_DECOYS, decoys + 1)
@@ -2304,14 +2321,16 @@ function frame(now: number): void {
   }
   // Lo robado sube girando y se encoge hasta desaparecer.
   for (const [item, t] of vanishing) {
-    const k = 1 - (t + dt) / VANISH_SECONDS
+    const progressK = (t + dt) / VANISH_SECONDS
+    const k = 1 - progressK
     if (k <= 0) {
       item.mesh.visible = false
       vanishing.delete(item)
       continue
     }
     vanishing.set(item, t + dt)
-    item.mesh.scale.setScalar(OBJECT_SCALE * k)
+    // Primero crece un golpe (pop) y luego se encoge.
+    item.mesh.scale.setScalar(OBJECT_SCALE * k * (1 + 0.6 * Math.sin(Math.min(progressK * 4, 1) * Math.PI)))
     item.mesh.position.y += dt * 1.5
     item.mesh.rotation.y += dt * 14
   }
@@ -2320,10 +2339,19 @@ function frame(now: number): void {
   placeHeadUi()
   updateContact()
   frameCount++
+  // Sacudida al ser atrapado: se desplaza la cámara solo para este dibujo y se devuelve.
+  const shake = shakeT > 0 ? (shakeT / SHAKE_SECONDS) * 0.35 : 0
+  shakeT = Math.max(0, shakeT - dt)
+  const { x: camX, y: camY } = camera.position
+  camera.position.x += (Math.random() - 0.5) * shake
+  camera.position.y += (Math.random() - 0.5) * shake
   if (phase !== 'menu' || frameCount % 2 === 0) {
     renderer.shadowMap.needsUpdate = frameCount % 2 === 0
     renderer.render(scene, camera)
   }
+  camera.position.x = camX
+  camera.position.y = camY
+
   requestAnimationFrame(frame)
 }
 requestAnimationFrame(frame)

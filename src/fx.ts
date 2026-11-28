@@ -6,11 +6,13 @@ import { LITE } from './device.ts'
 const POOL = LITE ? 40 : 120
 const GRAVITY = 9
 const SPARK_COLORS = [0xfde047, 0xffffff, 0x67e8f9] as const
+const DUST_COLOR = 0x9ca3af
 const CONFETTI_COLORS = [0xfde047, 0xf472b6, 0x67e8f9, 0xa3e635, 0xffffff] as const
 
 const positions = new Float32Array(POOL * 3).fill(-999)
 const colors = new Float32Array(POOL * 3)
 const velocity = new Float32Array(POOL * 3)
+const gravity = new Float32Array(POOL)
 const life = new Float32Array(POOL) // segundos restantes; 0 = libre
 const total = new Float32Array(POOL)
 
@@ -25,13 +27,14 @@ fx.renderOrder = 10
 let cursor = 0
 const tint = new THREE.Color()
 
-function spawn(x: number, y: number, z: number, vx: number, vy: number, vz: number, color: number, seconds: number): void {
+function spawn(x: number, y: number, z: number, vx: number, vy: number, vz: number, color: number, seconds: number, pull = GRAVITY): void {
   const i = cursor
   cursor = (cursor + 1) % POOL
   positions.set([x, y, z], i * 3)
   velocity.set([vx, vy, vz], i * 3)
   tint.set(color)
   colors.set([tint.r, tint.g, tint.b], i * 3)
+  gravity[i] = pull
   life[i] = seconds
   total[i] = seconds
 }
@@ -46,6 +49,12 @@ export function burstSparks(at: THREE.Vector3): void {
     const speed = rand(1.5, 4)
     spawn(at.x, at.y, at.z, Math.cos(a) * speed, rand(2, 5), Math.sin(a) * speed, SPARK_COLORS[k % SPARK_COLORS.length] ?? 0xffffff, rand(0.5, 0.9))
   }
+}
+
+/** Polvo bajo los pies al correr: sube un poco y se asienta. Se omite en dispositivos lentos. */
+export function puffDust(x: number, z: number): void {
+  if (LITE) return
+  spawn(x + rand(-0.15, 0.15), 0.1, z + rand(-0.15, 0.15), rand(-0.4, 0.4), rand(0.5, 1), rand(-0.4, 0.4), DUST_COLOR, rand(0.3, 0.5), 2)
 }
 
 /** Confeti al superar el nivel: lluvia amplia desde arriba del jugador. */
@@ -66,7 +75,7 @@ export function tickFx(dt: number): void {
       positions.set([0, -999, 0], i * 3)
       continue
     }
-    velocity[i * 3 + 1] = (velocity[i * 3 + 1] ?? 0) - GRAVITY * dt
+    velocity[i * 3 + 1] = (velocity[i * 3 + 1] ?? 0) - (gravity[i] ?? GRAVITY) * dt
     for (let a = 0; a < 3; a++) positions[i * 3 + a] = (positions[i * 3 + a] ?? 0) + (velocity[i * 3 + a] ?? 0) * dt
     // Hacia el final de su vida se oscurecen, y sobre el fondo oscuro eso se ve como un desvanecido.
     const fade = Math.min(1, ((life[i] ?? 0) / (total[i] ?? 1)) * 3)
