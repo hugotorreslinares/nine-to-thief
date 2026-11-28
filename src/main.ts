@@ -212,8 +212,27 @@ resize()
 /** Altura de la cámara sobre el suelo con un desplazamiento horizontal de 15 + 15: 12,25 daba 30° de inclinación, 17,8 da 40° (más vista desde arriba). */
 const CAMERA_HEIGHT = 17.8
 
+/** Cuartos de vuelta de la cámara alrededor del personaje. El nivel 1 mira desde (+x, +z); cada nivel cambia de lado. */
+let viewTurns = 0
+/** Orden de los lados por nivel: 1 como siempre, 2 desde la puerta de entrada (esquina opuesta), luego los otros dos. */
+const VIEW_ORDER = [0, 2, 1, 3] as const
+
+/** Gira un vector del plano `turns` cuartos de vuelta, igual que la cámara. */
+function rotateView(x: number, z: number, turns: number = viewTurns): Pt {
+  let p: Pt = { x, z }
+  for (let i = 0; i < turns; i++) p = { x: -p.z, z: p.x }
+  return p
+}
+
+/** Cambia el lado desde el que mira la cámara y gira el radar para que siga coincidiendo con la vista. */
+function setViewTurns(turns: number): void {
+  viewTurns = turns
+  dom.radar.style.rotate = `${45 - 90 * turns}deg`
+}
+
 function lookAt(x: number, z: number): void {
-  camera.position.set(x + 15, CAMERA_HEIGHT, z + 15)
+  const offset = rotateView(15, 15)
+  camera.position.set(x + offset.x, CAMERA_HEIGHT, z + offset.z)
   camera.lookAt(x, 0, z)
 }
 
@@ -1445,6 +1464,7 @@ function showBanner(title: string, color: string, text: string, hint: string): v
 
 function showMenu(): void {
   phase = 'menu'
+  setViewTurns(0)
   stopStealing()
   dom.hud.classList.add('hidden')
   dom.banner.classList.replace('flex', 'hidden')
@@ -1462,6 +1482,7 @@ function startLevel(): void {
   if (finished()) return showMenu()
   level = progress.level
   cfg = levelConfig(level)
+  setViewTurns(VIEW_ORDER[(level - 1) % VIEW_ORDER.length] ?? 0)
   timeLeft = LEVEL_SECONDS
 
   // Con dos celulares conectados se juega de a dos. El segundo personaje es el que eligió su celular, o se asigna solo.
@@ -2240,8 +2261,8 @@ function update(dt: number): void {
     // Pantalla: derecha = (1, -1), arriba = (-1, -1) sobre XZ.
     const ix = (own ? held('KeyD', 'ArrowRight') - held('KeyA', 'ArrowLeft') + stick.x : 0) + (pad?.x ?? 0)
     const iy = (own ? held('KeyW', 'ArrowUp') - held('KeyS', 'ArrowDown') + stick.y : 0) + (pad?.y ?? 0)
-    const mx = ix - iy
-    const mz = -ix - iy
+    // La palanca va hacia donde se ve en pantalla: se gira igual que la cámara.
+    const { x: mx, z: mz } = rotateView(ix - iy, -ix - iy)
     const moving = !grabbing && (mx !== 0 || mz !== 0)
     if (moving) {
       if (frameCount % 6 === 0) puffDust(p.x, p.z)
@@ -2487,7 +2508,9 @@ function frame(now: number): void {
     const [a, b] = crew
     if (a && b) {
       lookAt((a.x + b.x) / 2, (a.z + b.z) / 2)
-      wantZoom = coopZoom(a, b, innerWidth / innerHeight, baseView())
+      // coopZoom supone la vista del nivel 1: se devuelven las posiciones a ese lado.
+      const back = (4 - viewTurns) % 4
+      wantZoom = coopZoom(rotateView(a.x, a.z, back), rotateView(b.x, b.z, back), innerWidth / innerHeight, baseView())
     } else {
       lookAt(player.x, player.z)
       wantZoom = closeUp ? CLOSE_ZOOM : 1
