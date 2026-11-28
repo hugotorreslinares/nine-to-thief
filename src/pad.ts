@@ -53,7 +53,10 @@ el<HTMLDivElement>('#pad').innerHTML = `
           ${button('ok', 'OK', 'bg-emerald-500 px-6 py-2 text-base')}
         </div>
         ${button('grab', t('ROBAR'), 'size-32 bg-yellow-400 text-2xl')}
-        ${button('ability', t('HABILIDAD'), 'h-14 w-36 bg-sky-400 text-lg')}
+        <div class="flex gap-3">
+          ${button('throw', t('LANZAR'), 'h-14 w-28 bg-pink-400 text-lg')}
+          ${button('ability', t('HABILIDAD'), 'h-14 w-36 bg-sky-400 text-lg')}
+        </div>
       </div>
     </div>
   </div>`
@@ -160,6 +163,7 @@ hold('ability', PAD_BUTTON.ability)
 hold('ok', PAD_BUTTON.ok)
 hold('back', PAD_BUTTON.back)
 hold('zoom', PAD_BUTTON.zoom)
+hold('throw', PAD_BUTTON.throw)
 
 // iOS ignora user-scalable=no: se cancelan el pellizco y los gestos de zoom.
 addEventListener('touchmove', (e) => e.preventDefault(), { passive: false })

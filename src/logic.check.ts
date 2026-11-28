@@ -205,7 +205,8 @@ for (const file of readdirSync(srcDir).filter((name) => name.endsWith('.ts'))) {
 for (const text of used) assert.ok(text in EN, `falta la traducción al inglés de: ${text}`)
 
 assert.deepEqual(parsePadState([0.5, -2, PAD_BUTTON.grab | PAD_BUTTON.ok]), { x: 0.5, y: -1, buttons: 5 }, 'mando válido, palanca acotada')
-assert.deepEqual(parsePadState([0, 0, PAD_BUTTON.zoom | 0x20]), { x: 0, y: 0, buttons: PAD_BUTTON.zoom }, 'el botón de zoom pasa y los bits desconocidos se descartan')
+assert.equal(parsePadState([0, 0, PAD_BUTTON.throw])?.buttons, PAD_BUTTON.throw, 'el botón de lanzar pasa')
+assert.deepEqual(parsePadState([0, 0, PAD_BUTTON.zoom | 0x40]), { x: 0, y: 0, buttons: PAD_BUTTON.zoom }, 'el botón de zoom pasa y los bits desconocidos se descartan')
 assert.equal(parsePadState([0, 0]), undefined, 'rechaza mensajes cortos')
 assert.equal(parsePadState(['a', 0, 0]), undefined, 'rechaza tipos erróneos')
 assert.equal(parsePadState([Infinity, 0, 0]), undefined, 'rechaza no finitos')

@@ -1422,7 +1422,7 @@ function toggleMute(): void {
 }
 dom.muteBtn.textContent = muted ? t('🔇 SIN SONIDO') : t('🔊 SONIDO')
 dom.muteBtn.addEventListener('click', toggleMute)
-dom.throwBtn.addEventListener('click', throwDecoy)
+dom.throwBtn.addEventListener('click', () => throwDecoy())
 dom.langBtn.addEventListener('click', () => setLang(lang === 'es' ? 'en' : 'es'))
 document.documentElement.lang = lang
 
@@ -1849,6 +1849,7 @@ function pollPad(): void {
     padWas[slot] = buttons
     if (pressed & PAD_BUTTON.ability) useAbility(players[slot])
     if (pressed & PAD_BUTTON.zoom) toggleZoom()
+    if (pressed & PAD_BUTTON.throw) throwDecoy(players[slot])
     if (pressed & PAD_BUTTON.back) window.tvBack?.()
     if (pressed & PAD_BUTTON.ok) padOk()
   }
@@ -1991,10 +1992,10 @@ const decoyMesh = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.25, 0.25), new TH
 decoyMesh.visible = false
 scene.add(decoyMesh)
 
-function throwDecoy(): void {
+function throwDecoy(thrower: Player = player): void {
   if (phase !== 'playing' || decoys <= 0) return
   decoys -= 1
-  const land = resolveCircle(player.x + Math.cos(player.dir) * THROW_RANGE, player.z + Math.sin(player.dir) * THROW_RANGE, 0.2, SOLID)
+  const land = resolveCircle(thrower.x + Math.cos(thrower.dir) * THROW_RANGE, thrower.z + Math.sin(thrower.dir) * THROW_RANGE, 0.2, SOLID)
   decoyMesh.position.set(land.x, 0.2, land.z)
   decoyMesh.visible = true
   decoyT = DECOY_SECONDS
