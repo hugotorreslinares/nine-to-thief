@@ -419,6 +419,7 @@ function floatText(world: THREE.Vector3, text: string): void {
   label.style.top = `${((1 - p.y) / 2) * innerHeight}px`
   label.textContent = text
   label.addEventListener('animationend', () => label.remove())
+  setTimeout(() => label.remove(), 1500) // por si el navegador no llega a emitir animationend
   document.body.appendChild(label)
 }
 const VANISH_SECONDS = 0.4
