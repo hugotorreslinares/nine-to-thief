@@ -43,6 +43,7 @@ const rand = (min: number, max: number): number => min + Math.random() * (max - 
 
 /** Chispas al robar: salen en abanico desde el objeto. */
 export function burstSparks(at: THREE.Vector3): void {
+  if (LITE) return
   const n = LITE ? 8 : 18
   for (let k = 0; k < n; k++) {
     const a = rand(0, Math.PI * 2)
@@ -59,6 +60,7 @@ export function puffDust(x: number, z: number): void {
 
 /** Confeti al superar el nivel: lluvia amplia desde arriba del jugador. */
 export function burstConfetti(at: THREE.Vector3): void {
+  if (LITE) return
   const n = LITE ? 30 : 90
   for (let k = 0; k < n; k++) {
     spawn(at.x + rand(-3, 3), at.y + rand(2, 4), at.z + rand(-3, 3), rand(-1.5, 1.5), rand(1, 4), rand(-1.5, 1.5), CONFETTI_COLORS[k % CONFETTI_COLORS.length] ?? 0xffffff, rand(1.4, 2.4))

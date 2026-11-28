@@ -163,7 +163,7 @@ function renderPortraits(): Map<string, string> {
 const portraits = renderPortraits()
 
 const scene = new THREE.Scene()
-scene.add(fx)
+if (!LITE) scene.add(fx)
 // En la tele (GPU débil) el fondo es un color opaco: sin degradado ni viñeta de CSS que componer encima del canvas.
 if (LITE) {
   scene.background = new THREE.Color(0x15161c)
@@ -838,7 +838,7 @@ ui.innerHTML = `
     </dialog>
     <div class="flex w-full max-w-6xl items-stretch gap-2">
       <button id="rosterPrev" aria-label="${t('Anteriores')}" class="font-gta pointer-events-auto cursor-pointer self-center rounded-lg border-2 border-neutral-600 bg-neutral-900/90 px-3 py-6 text-3xl text-yellow-300 hover:border-yellow-300">‹</button>
-      <div id="roster" class="flex min-w-0 flex-1 snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"></div>
+      <div id="roster" class="${TV ? 'grid min-w-0 flex-1 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3' : 'flex min-w-0 flex-1 snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'}"></div>
       <button id="rosterNext" aria-label="${t('Siguientes')}" class="font-gta pointer-events-auto cursor-pointer self-center rounded-lg border-2 border-neutral-600 bg-neutral-900/90 px-3 py-6 text-3xl text-yellow-300 hover:border-yellow-300">›</button>
     </div>
     <p class="ink text-center text-base text-neutral-300 md:text-lg">${pick('Palanca: moverse · mantén ROBAR · toca la habilidad para usarla', 'Flechas: moverse · mantén OK: robar · PLAY: habilidad · Atrás: menú', 'WASD / flechas: moverse · mantén E: robar · Q: habilidad · Esc: menú')}</p>
@@ -989,7 +989,16 @@ function renderMenu(): void {
   // Con art toy se juega siempre con el protagonista (salvo cuentas antiguas con otro personaje).
   const own = account ? CHARACTERS.find((c) => c.id === progress.char) ?? CHARACTERS.find((c) => c.hero) : undefined
   // Datos estáticos propios: no hay entrada de usuario en este HTML.
-  dom.roster.innerHTML = (own ? [own] : CHARACTERS).map((c) => `
+  dom.roster.innerHTML = (own ? [own] : CHARACTERS).map((c) => TV ? `
+  <button data-id="${c.id}" class="flex cursor-pointer items-center gap-4 rounded-lg border-2 ${c.hero ? 'border-yellow-300' : 'border-neutral-700'} bg-neutral-900/90 p-2 text-left hover:border-yellow-300 hover:bg-neutral-800">
+    <img src="${portraits.get(c.id) ?? ''}" alt="${c.name}" class="size-20 shrink-0 md:size-28" />
+    <span class="flex flex-col">
+      <span class="text-3xl text-yellow-300">${c.name}</span>
+      <span class="text-xl text-sky-300">${t(c.ability.name)}</span>
+      <span class="font-sans text-sm text-neutral-200 md:text-base">${t(c.ability.text)}</span>
+    </span>
+    ${pickTag(c.id)}
+  </button>` : `
   <button data-id="${c.id}" class="flex shrink-0 basis-full cursor-pointer snap-start flex-col gap-3 rounded-lg border-2 lg:basis-[calc((100%-1.5rem)/3)] ${c.hero ? 'border-yellow-300' : 'border-neutral-700'} bg-neutral-900/90 p-3 text-left hover:border-yellow-300 hover:bg-neutral-800">
     <span class="flex items-center gap-4">
       <img src="${portraits.get(c.id) ?? ''}" alt="${c.name}" class="size-24 shrink-0 md:size-32" />
@@ -1003,8 +1012,9 @@ function renderMenu(): void {
     ${pickTag(c.id)}
   </button>`).join('')
   const several = !own
-  dom.rosterPrev.classList.toggle('hidden', !several)
-  dom.rosterNext.classList.toggle('hidden', !several)
+  // En la tele el mando no maneja el carrusel: allí se queda la cuadrícula de siempre.
+  dom.rosterPrev.classList.toggle('hidden', !several || TV)
+  dom.rosterNext.classList.toggle('hidden', !several || TV)
   dom.roster.scrollTo({ left: 0, behavior: 'instant' })
 }
 
@@ -1528,7 +1538,7 @@ function startLevel(): void {
 /** `captured`: lo vio un vigilante. Suma una estrella; a la quinta se pierde un nivel. */
 function bust(reason: string, captured: boolean, culprit: Player = player): void {
   phase = 'busted'
-  if (captured) shakeT = SHAKE_SECONDS
+  if (captured && !LITE) shakeT = SHAKE_SECONDS
   track('level_lose', { level })
   sfx.alarm()
   let text = reason
@@ -1581,9 +1591,9 @@ function win(): void {
     dom.preorderBannerBtn?.classList.remove('hidden')
   }
   // Título que entra con rebote y una segunda lluvia de confeti mientras se lee.
-  dom.bannerTitle.classList.add('pop-in')
+  if (!LITE) dom.bannerTitle.classList.add('pop-in')
   setTimeout(() => {
-    if (phase === 'won') burstConfetti(fxPoint.set(player.x, 0, player.z))
+    if (!LITE && phase === 'won') burstConfetti(fxPoint.set(player.x, 0, player.z))
   }, 600)
   if (challenge && (level > challenge.level || (level === challenge.level && spare > challenge.seconds))) dom.bannerTitle.textContent = t('¡Reto superado!')
   reportWin()
@@ -2172,7 +2182,7 @@ function update(dt: number): void {
     if (!items.includes(target)) continue // el otro jugador se lo llevó primero
     vanishing.set(target, 0)
     burstSparks(target.mesh.getWorldPosition(fxPoint))
-    floatText(fxPoint, '+1')
+    if (!LITE) floatText(fxPoint, '+1')
     target.marker.visible = false
     items = items.filter((i) => i !== target)
     decoys = Math.min(MAX_DECOYS, decoys + 1)
@@ -2335,7 +2345,7 @@ function frame(now: number): void {
     }
     vanishing.set(item, t + dt)
     // Primero crece un golpe (pop) y luego se encoge.
-    item.mesh.scale.setScalar(OBJECT_SCALE * k * (1 + 0.6 * Math.sin(Math.min(progressK * 4, 1) * Math.PI)))
+    item.mesh.scale.setScalar(OBJECT_SCALE * k * (LITE ? 1 : 1 + 0.6 * Math.sin(Math.min(progressK * 4, 1) * Math.PI)))
     item.mesh.position.y += dt * 1.5
     item.mesh.rotation.y += dt * 14
   }
