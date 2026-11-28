@@ -21,15 +21,15 @@ const button = (id: string, label: string, style: string): string =>
 el<HTMLDivElement>('#pad').innerHTML = `
   <div class="flex h-full flex-col justify-between p-4 pb-8">
     <div class="flex flex-col gap-3">
-      <div class="ink flex items-center justify-between gap-2">
-        <span class="text-xl text-yellow-300">NINE TO <span class="text-emerald-400">THIEF</span></span>
+      <div class="flex items-center justify-between gap-2">
+        <span class="ink text-xl text-yellow-300">NINE TO <span class="text-emerald-400">THIEF</span></span>
         <span id="slot" class="hidden rounded-full border-2 border-black px-3 py-0.5 text-base text-black"></span>
         <span id="status" class="font-sans text-sm text-neutral-300"></span>
       </div>
       <div class="flex items-center gap-3">
-        <button id="choose" disabled class="ink cursor-pointer rounded-lg border-2 border-black bg-yellow-400 px-4 py-2 text-lg text-black disabled:opacity-40">${t('ELEGIR PERSONAJE')}</button>
-        <span id="mine" class="ink min-w-0 flex-1 truncate text-lg text-white"></span>
-        <button id="zoom" class="ink cursor-pointer touch-none rounded-lg border-2 border-black bg-sky-400 px-3 py-2 text-lg text-black">${t('ZOOM')}</button>
+        <button id="choose" disabled class="cursor-pointer rounded-lg border-2 border-black bg-yellow-400 px-4 py-2 text-lg text-black disabled:opacity-40">${t('ELEGIR PERSONAJE')}</button>
+        <span id="mine" class="min-w-0 flex-1 truncate text-lg text-white"></span>
+        <button id="zoom" class="cursor-pointer touch-none rounded-lg border-2 border-black bg-sky-400 px-3 py-2 text-lg text-black">${t('ZOOM')}</button>
       </div>
     </div>
     <dialog id="roster" class="m-auto h-[85dvh] w-[92vw] max-w-md overflow-y-auto rounded-xl border-2 border-yellow-300 bg-neutral-900 p-4 text-white backdrop:bg-black/70">
