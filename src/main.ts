@@ -1580,6 +1580,11 @@ function win(): void {
     dom.waitBannerBtn.classList.remove('hidden')
     dom.preorderBannerBtn?.classList.remove('hidden')
   }
+  // Título que entra con rebote y una segunda lluvia de confeti mientras se lee.
+  dom.bannerTitle.classList.add('pop-in')
+  setTimeout(() => {
+    if (phase === 'won') burstConfetti(fxPoint.set(player.x, 0, player.z))
+  }, 600)
   if (challenge && (level > challenge.level || (level === challenge.level && spare > challenge.seconds))) dom.bannerTitle.textContent = t('¡Reto superado!')
   reportWin()
 }
