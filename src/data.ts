@@ -158,7 +158,7 @@ export const CHARACTERS: readonly Character[] = [
   },
   {
     id: 'benjamin', name: 'Benjamín', home: { x: 35, z: 13.1, dir: S }, desk: desk(35, 14.1),
-    look: { skin: 0xd8a47f, hair: 0x2a2a2a, hairStyle: 'bald', top: 0x7a1f2b, bottom: 0x2b2b35, tie: 0xd4af37, mustache: true, wide: 1.05, gear: ['bowtie'] },
+    look: { skin: 0xd8a47f, hair: 0x2a2a2a, hairStyle: 'bald', top: 0x7a1f2b, bottom: 0x2b2b35, tie: 0xd4af37, wide: 1.05, gear: ['bowtie'] },
     ability: { name: 'Reclutamiento', text: 'Convierte a los vigilantes cercanos en ladrones 12 s: roban por ti.', cooldown: 25, effect: { kind: 'convert', radius: 6, max: 3, seconds: 12 } },
   },
 ]
