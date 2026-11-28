@@ -1790,8 +1790,39 @@ function enterWithToy(code: string): void {
 }
 
 /** OK del celular: avanza el póster o el cartel; en el menú pulsa el personaje enfocado. */
+/** El celular mueve el foco de la cuadrícula de personajes con su palanca (la tele no tiene por qué tener su mando a mano). */
+const NAV_REPEAT_MS = 350
+const NAV_THRESHOLD = 0.6
+let navAt = 0
+let padNavigated = false
+
+function padNavigate(now: number): void {
+  if (phase !== 'menu' || !dom.poster.classList.contains('hidden') || now < navAt) return
+  const stick = remote?.source(0) ?? remote?.source(1)
+  if (!stick) return
+  const horizontal = Math.abs(stick.x) > Math.abs(stick.y)
+  const amount = horizontal ? stick.x : stick.y
+  if (Math.abs(amount) < NAV_THRESHOLD) return
+  const cards = [...dom.roster.querySelectorAll<HTMLElement>('[data-id]')]
+  const columns = Math.max(1, cards.filter((c) => c.offsetTop === cards[0]?.offsetTop).length)
+  const step = horizontal ? Math.sign(amount) : -Math.sign(amount) * columns
+  const current = cards.indexOf(document.activeElement as HTMLElement)
+  const next = cards[Math.min(cards.length - 1, Math.max(0, (current < 0 ? 0 : current + step)))]
+  if (!next) return
+  next.focus()
+  next.scrollIntoView({ block: 'nearest' })
+  padNavigated = true
+  navAt = now + NAV_REPEAT_MS
+}
+
 function padOk(): void {
   if (phase !== 'menu') return confirm()
+  // Si el celular movió el foco, OK elige ese personaje.
+  const focusedCard = document.activeElement instanceof HTMLElement && document.activeElement.dataset.id ? document.activeElement : undefined
+  if (padNavigated && focusedCard) {
+    padNavigated = false
+    return focusedCard.click()
+  }
   // Los celulares se conectan desde el póster: si ya eligieron, OK empieza sin pasar por el menú.
   const first = CHARACTERS.find((c) => c.id === picks[0])
   if (first || picks[1] !== null) {
@@ -1842,6 +1873,7 @@ function showPause(absent: Player | undefined): void {
 }
 
 function pollPad(): void {
+  padNavigate(performance.now())
   for (const slot of [0, 1] as const) {
     const buttons = remote?.source(slot)?.buttons ?? 0
     padHeld[slot] = buttons
