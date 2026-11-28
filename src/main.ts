@@ -11,6 +11,7 @@ import { PRESALE_LIMIT } from './presale.ts'
 import { LITE, TOUCH, TV } from './device.ts'
 import { buildFigure, baseScale, idleFigure, loadModelFigure, reactFigure, setMask, swingLimbs } from './figure.ts'
 import { lang, setLang, t } from './i18n.ts'
+import { FREE_LEVELS } from './config.ts'
 import { COUNTS, DEMO_COUNTS, LEVELS } from './levels.ts'
 import { track } from './track.ts'
 import { FRESH, MAX_STARS, caught, steal, type Progress } from './progress.ts'
@@ -999,7 +1000,7 @@ function renderMenu(): void {
   // textContent: el nombre lo escribió el jugador.
   dom.account.textContent = account
     ? `${account.name} · ${finished() ? t('OFICINA VACÍA') : t('NIVEL {n}', { n: progress.level })} · ${starsText()}`
-    : TV ? t('DEMO: solo los niveles 1 y 2. En tu celular abre tu art toy y toca "Jugar en la tele".') : t('DEMO: solo los niveles 1 y 2. Acerca tu art toy para jugar los 10 niveles.')
+    : TV ? t('DEMO: solo los primeros {n} niveles. En tu celular abre tu art toy y toca "Jugar en la tele".', { n: FREE_LEVELS }) : t('DEMO: solo los primeros {n} niveles. Acerca tu art toy para jugar los 10 niveles.', { n: FREE_LEVELS })
   // Con art toy sobran la lista de espera y el cambio de idioma (recargar cerraría la sesión).
   dom.waitBtn.classList.toggle('hidden', account !== undefined)
   dom.preorderBtn?.classList.toggle('hidden', account !== undefined)

@@ -1,3 +1,4 @@
+import { FREE_LEVELS } from './config.ts'
 // Los 10 niveles: cada uno es una categoría de objetos repartida por la oficina.
 // Para cambiar la progresión basta editar LEVELS; cliente y servidor leen de aquí.
 
@@ -116,5 +117,7 @@ export const LEVELS: readonly LevelKind[] = [
 /** Objetos por nivel: lo único que el servidor necesita para validar un robo. */
 export const COUNTS: readonly number[] = LEVELS.map((kind) => kind.places.length)
 
-/** Sin art toy solo se juega el primer nivel. */
-export const DEMO_COUNTS: readonly number[] = COUNTS.slice(0, 2)
+/** Sin art toy solo se juegan los primeros `FREE_LEVELS` niveles (game.config.json). */
+export const DEMO_COUNTS: readonly number[] = COUNTS.slice(0, FREE_LEVELS)
+
+if (FREE_LEVELS > COUNTS.length) throw new Error(`game.config.json: freeLevels (${FREE_LEVELS}) supera los ${COUNTS.length} niveles del juego`)

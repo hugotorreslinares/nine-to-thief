@@ -1,5 +1,6 @@
 // Página /tv: descarga del APK para Android TV, instrucciones y avisos.
 import './style.css'
+import { FREE_LEVELS } from './config.ts'
 import { t } from './i18n.ts'
 
 const APK_URL = '/apk'
@@ -23,7 +24,7 @@ const steps = [
 const notes = [
   t('Es un juego gratuito, sin anuncios y sin pagos dentro de la app.'),
   t('La app no está en Google Play: instálala solo desde esta página. Android avisará de que viene de un origen desconocido, es normal en las apps que no pasan por la tienda.'),
-  t('En la tele se juega la demo (niveles 1 y 2). Para los 10 niveles, abre tu art toy en el celular, toca "Jugar en la tele" y escribe el código que muestra la tele.'),
+  t('En la tele se juega la demo (los primeros {n} niveles). Para los 10 niveles, abre tu art toy en el celular, toca "Jugar en la tele" y escribe el código que muestra la tele.', { n: FREE_LEVELS }),
   t('Probado en un televisor Hisense con Android 9. Necesita Android TV o Google TV con Android 7 o superior e internet.'),
   t('Para actualizar, desinstala la versión anterior antes de instalar la nueva.'),
 ]

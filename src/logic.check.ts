@@ -10,7 +10,8 @@ import { createHash } from 'node:crypto'
 import { EN } from './i18n.ts'
 import { STORIES } from './stories.ts'
 import { CHAIRS, CHARACTERS, FURNITURE, MAP, OBJECTS, ROUTES, SPAWN, WALLS, extraObjects, randomLayout } from './data.ts'
-import { COUNTS, LEVELS } from './levels.ts'
+import { FREE_LEVELS } from './config.ts'
+import { COUNTS, DEMO_COUNTS, LEVELS } from './levels.ts'
 import { FRESH, MAX_STARS, caught, steal, type Progress } from './progress.ts'
 import { PAD_BUTTON, applyPick, parseHostMessage, parsePadState, parsePick, parseToy, type Picks } from './padState.ts'
 import { coopZoom, MAX_ZOOM, box, canSee, rayDistance, resolveCircle, turnToward } from './logic.ts'
@@ -288,3 +289,8 @@ const state = (await (await presaleGet()).json()) as { limit: number; left: numb
 assert.deepEqual([state.limit, state.left], [10, 9], 'quedan 9 de 10')
 
 console.log('logic ok')
+
+// ---------- Ajustes (game.config.json) ----------
+
+assert.equal(DEMO_COUNTS.length, FREE_LEVELS, 'la demo tiene tantos niveles como freeLevels')
+assert.ok(FREE_LEVELS >= 1 && FREE_LEVELS <= COUNTS.length, 'freeLevels entre 1 y el total de niveles')

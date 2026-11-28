@@ -86,3 +86,13 @@ adb install -r release/android/app-debug.apk
 Modo cooperativo con dos celulares en el mismo televisor: escanean el mismo QR (el primero es el Jugador 1, el segundo el 2), cada uno controla a su personaje y entre los dos roban los objetos del nivel, con un 40 % más de objetos. Si un vigilante ve robar a cualquiera de los dos, pierden los dos. Un tercer celular recibe "Sala llena".
 
 Cada uno elige su personaje desde su celular (botón **ELEGIR PERSONAJE** en la página de mando; el que ya tomó el otro aparece ocupado) y OK empieza la partida. Si un celular se cae, la partida se pausa unos segundos hasta que vuelva (la página de mando se reconecta sola), y cada jugador lleva su nombre sobre la cabeza. Hecho: las tres etapas. Pendiente: afinar el equilibrio jugando de verdad (`COOP_EXTRA` en `src/data.ts`). Decisiones y plan en [docs/dos-jugadores.md](docs/dos-jugadores.md).
+
+## Ajustes sin tocar el código
+
+Se editan en `game.config.json` y se aplican al desplegar (`npm run build` o `vercel deploy --prod`).
+
+| Clave | Qué hace | Valor actual |
+| --- | --- | --- |
+| `freeLevels` | Niveles que se juegan gratis, sin art toy (entero de 1 a 10) | `3` |
+
+Un valor inválido (no entero, menor que 1 o mayor que los niveles del juego) hace fallar la compilación y las pruebas (`npm test`) con un mensaje claro. Las páginas de texto (SEO, itch.io) dicen "los primeros niveles" sin número, para que no haya que editarlas al cambiar este valor.

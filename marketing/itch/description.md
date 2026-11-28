@@ -45,7 +45,7 @@ No download, no sign-up. Works on desktop and on your phone. There is also a fre
 
 ### Free demo and the art toy
 
-The first **two levels are free**. The full game has **10 levels** and unlocks by tapping the **Nine art toy** (a collectible figure of the masked thief with an NFC chip) to your phone, which also saves your progress. No ads.
+The first **levels are free**. The full game has **10 levels** and unlocks by tapping the **Nine art toy** (a collectible figure of the masked thief with an NFC chip) to your phone, which also saves your progress. No ads.
 
 ### Links
 
