@@ -271,6 +271,11 @@ export const EN: Readonly<Record<string, string>> = {
   'Modo sombra': 'Shadow mode',
   'Invisible para todos durante 2,5 s. Además roba 15 % más rápido.': 'Invisible to everyone for 2.5 s. Also steals 15% faster.',
   // carrusel de personajes (menú)
+  'Luna llena': 'Full moon',
+  'Devora a un vigilante cercano, pero solo si nadie más lo ve.': 'Devours a nearby guard, but only if nobody else is watching.',
+  '¡{name} desapareció!': '{name} vanished!',
+  'No hay nadie al alcance': 'Nobody within reach',
+  '¡Hay testigos!': 'There are witnesses!',
   'Anteriores': 'Previous',
   'Siguientes': 'Next',
   ...Object.fromEntries(Object.values(STORIES).map((story) => [story.es, story.en])),

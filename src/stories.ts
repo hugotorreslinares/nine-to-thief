@@ -60,6 +60,10 @@ export const STORIES: Readonly<Record<string, { readonly es: string; readonly en
     es: 'Para ella, el viernes empieza el lunes y la hora feliz empieza a las 4:59. Cuando suena el reloj, nadie la alcanza.',
     en: 'For her, Friday starts on Monday and happy hour starts at 4:59. When the clock strikes, nobody can catch her.',
   },
+  lobo: {
+    es: 'Solo se transforma en luna llena, pero la oficina lleva meses sospechando. Dice que es vegetariano. Los cubículos vacíos de cada fin de mes dicen otra cosa.',
+    en: 'He only transforms on a full moon, but the office has been suspicious for months. He claims to be vegetarian. The empty cubicles at every month end say otherwise.',
+  },
   ivan: {
     es: 'Ensaya canciones en la oficina "bajito" y se oye en toda la planta. Su gran sueño: cantar en el cumpleaños de alguien sin que lo callen.',
     en: 'He rehearses songs at the office "quietly" and the whole floor hears. His big dream: singing at somebody\'s birthday without being shushed.',

@@ -3,7 +3,7 @@ import { box, type Box, type Pt } from './logic.ts'
 
 export type Hair = 'short' | 'bald' | 'balding' | 'long' | 'bun' | 'curly'
 
-export type Gear = 'headset' | 'cap' | 'lanyard' | 'scarf' | 'earrings' | 'bowtie'
+export type Gear = 'headset' | 'cap' | 'lanyard' | 'scarf' | 'earrings' | 'bowtie' | 'wolf'
 
 export interface Look {
   readonly skin: number
@@ -31,6 +31,8 @@ export type Effect =
   | { readonly kind: 'cloak'; readonly seconds: number }
   | { readonly kind: 'dash'; readonly seconds: number; readonly factor: number }
   | { readonly kind: 'time'; readonly seconds: number }
+  /** Devora al vigilante más cercano dentro de `range`, solo si ningún otro lo está viendo. */
+  | { readonly kind: 'devour'; readonly range: number }
 
 export interface Character {
   readonly id: string
@@ -146,6 +148,11 @@ export const CHARACTERS: readonly Character[] = [
     id: 'ivan', name: 'Iván', home: { x: 8.3, z: 7.2, dir: S }, desk: desk(8.3, 8.2),
     look: { skin: SKIN, hair: 0x1d3557, hairStyle: 'short', top: 0xff7f50, bottom: 0x1d3557, tie: 0xffd166, gear: ['lanyard'] },
     ability: { name: 'Karaoke de oficina', text: 'Los cercanos miran donde cantó 3 s. Recarga corta.', cooldown: 10, effect: { kind: 'lure', radius: 10, seconds: 3, at: 'self' } },
+  },
+  {
+    id: 'lobo', name: 'Lobo', home: { x: 37, z: 12.4, dir: -S }, desk: desk(37, 11.4),
+    look: { skin: 0x9a8573, hair: 0x4b4b55, hairStyle: 'long', top: 0x3a3a44, bottom: 0x23232b, beard: true, scale: 1.1, wide: 1.1, gear: ['wolf'] },
+    ability: { name: 'Luna llena', text: 'Devora a un vigilante cercano, pero solo si nadie más lo ve.', cooldown: 20, effect: { kind: 'devour', range: 1.8 } },
   },
 ]
 

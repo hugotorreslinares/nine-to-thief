@@ -261,6 +261,11 @@ export function buildFigure(look: Look): THREE.Group {
     } else if (item === 'scarf') {
       part(CYLINDER, 0xe11d48, [0.17, 0.07, 0.17], [0, 0.82, 0])
       part(BOX, 0xe11d48, [0.04, 0.28, 0.09], [chest + 0.03, 0.64, 0.09])
+    } else if (item === 'wolf') {
+      for (const side of [1, -1]) part(BOX, look.hair, [0.1, 0.22, 0.1], [-0.05, HEAD_Y + 0.42, side * 0.22]).rotation.x = side * -0.25 // orejas
+      part(SPHERE, look.hair, [0.17, 0.1, 0.13], [0.42, HEAD_Y - 0.1, 0]) // hocico
+      part(SPHERE, 0x111111, [0.05, 0.04, 0.05], [0.56, HEAD_Y - 0.06, 0]) // nariz
+      part(SPHERE, look.hair, [0.3, 0.1, 0.1], [-0.32, 0.5, 0]).rotation.z = 0.5 // cola
     } else {
       for (const side of [1, -1]) part(BOX, 0xe11d48, [0.03, 0.06, 0.07], [chest + 0.02, 0.78, side * 0.06]).rotation.x = side * 0.5
       part(SPHERE, 0xe11d48, [0.025, 0.025, 0.025], [chest + 0.03, 0.78, 0])

@@ -1491,6 +1491,7 @@ function startLevel(): void {
   // Ausentes: entre los que no patrullan ni juegan, rotando según el nivel para que no sean siempre los mismos.
   const staying = allNpcs.filter((npc) => !plays(npc.char) && !patrollers.includes(npc.char.id))
   const away = new Set(Array.from({ length: Math.min(awayCount(level), staying.length) }, (_, i) => staying[(level * 3 + i) % staying.length]))
+  devoured.clear()
   npcs = allNpcs.filter((npc) => !plays(npc.char) && !away.has(npc))
   for (const npc of allNpcs) {
     const route = ROUTES[patrollers.indexOf(npc.char.id) % ROUTES.length]
@@ -1601,9 +1602,34 @@ function win(): void {
 
 // ---------- Habilidades ----------
 
+/** Vigilantes eliminados en este nivel: no vuelven aunque termine la reunión. */
+const devoured = new Set<Npc>()
+
+/** Devora al vigilante más cercano si ningún otro tiene al jugador a la vista. */
+function devour(p: Player, range: number, wait: number): void {
+  const prey = npcs
+    .filter((n) => Math.hypot(n.x - p.x, n.z - p.z) <= range)
+    .sort((a, b) => Math.hypot(a.x - p.x, a.z - p.z) - Math.hypot(b.x - p.x, b.z - p.z))[0]
+  if (!prey) return notify(t('No hay nadie al alcance'))
+  const witnessed = npcs.some((n) => n !== prey && canSee({ x: n.x, z: n.z, dir: n.dir, range: cfg.range * (p.char.visibility ?? 1) * (n.blindT > 0 ? n.blindK : 1), halfAngle: cfg.halfAngle }, p, SIGHT))
+  if (witnessed) return notify(t('¡Hay testigos!'))
+  p.cooldown = wait
+  devoured.add(prey)
+  npcs = npcs.filter((n) => n !== prey)
+  inMeeting = inMeeting.filter((n) => n !== prey)
+  prey.fig.visible = false
+  prey.cone.visible = false
+  seeing.delete(prey)
+  tone(80, 0, 0.45, 'sawtooth', 0.14)
+  tone(60, 0.12, 0.4, 'square', 0.1)
+  if (!LITE) burstSparks(fxPoint.set(prey.x, 0.6, prey.z))
+  notify(t('¡{name} desapareció!', { name: prey.char.name }))
+}
+
 function useAbility(p: Player): void {
   const { effect, cooldown: wait } = p.char.ability
   if (!effect || p.cooldown > 0 || phase !== 'playing' || !crew.includes(p)) return
+  if (effect.kind === 'devour') return devour(p, effect.range, wait ?? 0)
   p.cooldown = wait ?? 0
   sfx.ability()
   const near = (radius: number): Npc[] =>
@@ -2046,10 +2072,10 @@ const seeing = new Set<Npc>()
 
 function endMeeting(): void {
   for (const n of inMeeting) {
-    n.fig.visible = true
-    n.cone.visible = true
+    n.fig.visible = !devoured.has(n)
+    n.cone.visible = !devoured.has(n)
   }
-  npcs = [...npcs, ...inMeeting]
+  npcs = [...npcs, ...inMeeting.filter((n) => !devoured.has(n))]
   inMeeting = []
 }
 
