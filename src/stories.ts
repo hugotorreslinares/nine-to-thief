@@ -64,6 +64,10 @@ export const STORIES: Readonly<Record<string, { readonly es: string; readonly en
     es: 'Solo se transforma en luna llena, pero la oficina lleva meses sospechando. Dice que es vegetariano. Los cubículos vacíos de cada fin de mes dicen otra cosa.',
     en: 'He only transforms on a full moon, but the office has been suspicious for months. He claims to be vegetarian. The empty cubicles at every month end say otherwise.',
   },
+  benjamin: {
+    es: 'Su discurso de bienvenida convenció a toda la oficina de que robar el papel higiénico es "trabajo en equipo". Nadie recuerda quién lo contrató, y nadie se atreve a preguntar.',
+    en: 'His welcome speech convinced the whole office that stealing the toilet paper is "teamwork". Nobody remembers who hired him, and nobody dares to ask.',
+  },
   ivan: {
     es: 'Ensaya canciones en la oficina "bajito" y se oye en toda la planta. Su gran sueño: cantar en el cumpleaños de alguien sin que lo callen.',
     en: 'He rehearses songs at the office "quietly" and the whole floor hears. His big dream: singing at somebody\'s birthday without being shushed.',

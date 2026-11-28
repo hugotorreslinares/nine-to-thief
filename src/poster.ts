@@ -122,6 +122,12 @@ function extras(c: Character): { readonly face: string; readonly over: string; r
       return { ...none, over: `<g transform="translate(70 58)">${[0, 72, 144, 216, 288].map((a) => `<ellipse cx="0" cy="-6.5" rx="4.4" ry="6.5" fill="#ff6b9d" stroke-width="1.6" transform="rotate(${a})"/>`).join('')}<circle r="3.4" fill="#ffd166" stroke-width="1.4"/></g>` }
     case 'ivan':
       return { ...none, over: both(`<circle cx="54" cy="112" r="4.5" fill="#f4f4f4" stroke-width="1.8"/><path d="M52 116 Q42 152 70 190" fill="none" stroke="#f4f4f4" stroke-width="2.4"/>`) }
+    case 'benjamin':
+      return {
+        ...none,
+        face: `<ellipse cx="84" cy="52" rx="14" ry="6" fill="#fff" opacity="0.45" stroke="none" transform="rotate(-25 84 52)"/><path d="M80 66 Q100 60 120 66 M84 75 Q100 70 116 75" fill="none" stroke-width="1.8" opacity="0.5"/>`,
+        over: `<circle cx="118" cy="101" r="14" fill="#fff" fill-opacity="0.18" stroke="#d4af37" stroke-width="3"/><path d="M131 110 Q148 150 122 192" fill="none" stroke="#d4af37" stroke-width="2"/>`,
+      }
     case 'lobo':
       return {
         face: `<ellipse cx="100" cy="137" rx="26" ry="21" fill="${shade(look.skin, 0.3)}" stroke="none"/>${both(`<path d="M59 108 L43 116 L58 124 L45 134 L60 142 L49 154 L64 154Z" fill="${hairColor}" stroke-width="2.4"/>`)}`,

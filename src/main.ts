@@ -2,7 +2,7 @@ import * as THREE from 'three'
 import './style.css'
 import {
   CHAIRS, CHAIR_R, CHARACTERS, CONFERENCE, FURNITURE, LEVEL_SECONDS, MAP, OBJECTS, PATROL_ORDER, ROOMS, ROUTES, SPAWN, WALLS,
-  COOP_EXTRA, awayCount, extraObjects, levelConfig, randomLayout, type Character, type Furniture, type LevelConfig, type OfficeObject,
+  COOP_EXTRA, awayCount, extraObjects, levelConfig, randomLayout, type Character, type Effect, type Furniture, type LevelConfig, type OfficeObject,
 } from './data.ts'
 import { bakeChildren, mergeColored } from './bake.ts'
 import { loadClears, markCleared } from './clears.ts'
@@ -1493,6 +1493,7 @@ function startLevel(): void {
   const staying = allNpcs.filter((npc) => !plays(npc.char) && !patrollers.includes(npc.char.id))
   const away = new Set(Array.from({ length: Math.min(awayCount(level), staying.length) }, (_, i) => staying[(level * 3 + i) % staying.length]))
   devoured.clear()
+  thieves = []
   npcs = allNpcs.filter((npc) => !plays(npc.char) && !away.has(npc))
   for (const npc of allNpcs) {
     const route = ROUTES[patrollers.indexOf(npc.char.id) % ROUTES.length]
@@ -1503,6 +1504,7 @@ function startLevel(): void {
     })
     npc.cone.visible = npcs.includes(npc)
     npc.fig.visible = !away.has(npc)
+    setMask(npc.fig, false)
   }
   for (const c of CHARACTERS) if (c.hero) figureOf(c).visible = plays(c)
 
@@ -1627,10 +1629,112 @@ function devour(p: Player, range: number, wait: number): void {
   notify(t('¡{name} desapareció!', { name: prey.char.name }))
 }
 
+/** Vigilantes convertidos en ladrones: caminan hacia un objeto, lo roban y suman al progreso del nivel. */
+interface Thief {
+  readonly npc: Npc
+  target: Item | undefined
+  grab: number
+  left: number
+}
+let thieves: Thief[] = []
+const THIEF_SPEED = 3.2
+const THIEF_GRAB_SECONDS = 1.4
+const THIEF_REACH = 1.1
+
+/** Convierte a los vigilantes más cercanos; no gasta la recarga si no hay nadie al alcance. */
+function convert(p: Player, effect: Extract<Effect, { kind: 'convert' }>, wait: number): void {
+  const recruits = npcs
+    .filter((n) => Math.hypot(n.x - p.x, n.z - p.z) <= effect.radius)
+    .sort((a, b) => Math.hypot(a.x - p.x, a.z - p.z) - Math.hypot(b.x - p.x, b.z - p.z))
+    .slice(0, effect.max)
+  if (recruits.length === 0) return notify(t('No hay nadie al alcance'))
+  p.cooldown = wait
+  sfx.ability()
+  for (const n of recruits) {
+    npcs = npcs.filter((other) => other !== n)
+    n.cone.visible = false
+    seeing.delete(n)
+    setMask(n.fig, true)
+    thieves.push({ npc: n, target: undefined, grab: 0, left: effect.seconds })
+  }
+  notify(t('Tienes ayudantes: {n}', { n: recruits.length }))
+}
+
+/** El objeto libre más cercano que nadie más persigue, prefiriendo los que se alcanzan en línea recta. */
+function nextLoot(n: Npc, taken: ReadonlySet<Item>): Item | undefined {
+  const free = items.filter((i) => !taken.has(i))
+  const dist = (i: Item): number => Math.hypot(i.x - n.x, i.z - n.z)
+  const reachable = free.filter((i) => {
+    const d = dist(i)
+    return d < 1e-6 || rayDistance(n.x, n.z, (i.x - n.x) / d, (i.z - n.z) / d, d, SOLID) >= d - THIEF_REACH
+  })
+  // ponytail: sin búsqueda de ruta; si no hay línea recta, el ladrón se atasca contra el mueble hasta que acabe su tiempo.
+  return (reachable.length > 0 ? reachable : free).sort((a, b) => dist(a) - dist(b))[0]
+}
+
+/** Roba un objeto en nombre de un ayudante. Devuelve true si con él se supera el nivel. */
+function thiefSteal(target: Item): boolean {
+  vanishing.set(target, 0)
+  if (!LITE) burstSparks(target.mesh.getWorldPosition(fxPoint))
+  target.marker.visible = false
+  items = items.filter((i) => i !== target)
+  sfx.pick()
+  return completeItem(target)
+}
+
+function updateThieves(dt: number): boolean {
+  const taken = new Set<Item>()
+  for (const th of thieves) if (th.target) taken.add(th.target)
+  for (const th of thieves) {
+    th.left -= dt
+    const { npc: n } = th
+    if (th.target && !items.includes(th.target)) th.target = undefined
+    if (!th.target) {
+      th.target = nextLoot(n, taken)
+      th.grab = 0
+      if (th.target) taken.add(th.target)
+    }
+    let walking = false
+    const target = th.target
+    if (target) {
+      const dx = target.x - n.x
+      const dz = target.z - n.z
+      const d = Math.hypot(dx, dz)
+      n.dir = turnToward(n.dir, Math.atan2(dz, dx), 10 * dt)
+      if (d > THIEF_REACH) {
+        const step = Math.min(d - THIEF_REACH + 0.05, THIEF_SPEED * dt)
+        const next = resolveCircle(n.x + (dx / d) * step, n.z + (dz / d) * step, NPC_R, SOLID)
+        n.x = next.x
+        n.z = next.z
+        walking = true
+        th.grab = 0
+      } else {
+        th.grab += dt / THIEF_GRAB_SECONDS
+        if (th.grab >= 1) {
+          th.target = undefined
+          th.grab = 0
+          if (thiefSteal(target)) return true
+        }
+      }
+    }
+    place(n.fig, n.x, n.z, n.dir, walking ? clock * 9 + n.phase : undefined)
+  }
+  // Pasado su tiempo vuelven a ser vigilantes.
+  for (const th of thieves) {
+    if (th.left > 0) continue
+    setMask(th.npc.fig, false)
+    th.npc.cone.visible = true
+    npcs = [...npcs, th.npc]
+  }
+  thieves = thieves.filter((th) => th.left > 0)
+  return false
+}
+
 function useAbility(p: Player): void {
   const { effect, cooldown: wait } = p.char.ability
   if (!effect || p.cooldown > 0 || phase !== 'playing' || !crew.includes(p)) return
   if (effect.kind === 'devour') return devour(p, effect.range, wait ?? 0)
+  if (effect.kind === 'convert') return convert(p, effect, wait ?? 0)
   p.cooldown = wait ?? 0
   sfx.ability()
   const near = (radius: number): Npc[] =>
@@ -2249,6 +2353,7 @@ function update(dt: number): void {
     sfx.pick()
     if (completeItem(target)) return win()
   }
+  if (updateThieves(dt)) return win()
   if (timeLeft <= 0) return bust(t('Se acabó el tiempo'), false)
 
   headInfo = plans.map(({ p, target, grabbing }) => ({ p, target, grabbing }))

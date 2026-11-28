@@ -29,7 +29,7 @@ No download, no sign-up. Works on desktop and on your phone. There is also a fre
 - **Sneak and steal.** Find the items highlighted in yellow, walk up to them and hold the steal button. You can't move while stealing, and if a guard sees you, the alarm goes off.
 - **Watch the vision cones.** Every coworker looks around with a cone of sight. A sweat drop over your head means someone has you in view.
 - **Beat the clock.** One minute per level. Every level asks for a different item: staplers, pencils, notebooks, coffee mugs, computer mice, keyboards, headphones, calculators, picture frames and trophies. Difficulty rises: more items, more guards.
-- **Pick your thief.** 17 characters, each with its own ability: distract others, run faster, go unnoticed, steal quicker. Throw a decoy, push coworkers and move some furniture.
+- **Pick your thief.** 18 characters, each with its own ability: distract others, run faster, go unnoticed, steal quicker. Throw a decoy, push coworkers and move some furniture.
 - **Play with a friend.** On Android TV, two players can team up in co-op using their phones as controllers. If a guard catches either of you, you both lose.
 - **Climb the leaderboard.** Pick a nickname and compete on the global leaderboard: level reached counts first, then the time you had left.
 

@@ -33,6 +33,8 @@ export type Effect =
   | { readonly kind: 'time'; readonly seconds: number }
   /** Devora al vigilante más cercano dentro de `range`, solo si ningún otro lo está viendo. */
   | { readonly kind: 'devour'; readonly range: number }
+  /** Los `max` vigilantes más cercanos dentro de `radius` roban por el jugador durante `seconds`. */
+  | { readonly kind: 'convert'; readonly radius: number; readonly max: number; readonly seconds: number }
 
 export interface Character {
   readonly id: string
@@ -153,6 +155,11 @@ export const CHARACTERS: readonly Character[] = [
     id: 'lobo', name: 'Lobo', home: { x: 37, z: 12.4, dir: -S }, desk: desk(37, 11.4),
     look: { skin: 0x9a8573, hair: 0x4b4b55, hairStyle: 'long', top: 0x3a3a44, bottom: 0x23232b, beard: true, scale: 1.1, wide: 1.1, gear: ['wolf'] },
     ability: { name: 'Luna llena', text: 'Devora a un vigilante cercano, pero solo si nadie más lo ve.', cooldown: 15, effect: { kind: 'devour', range: 2.2 } },
+  },
+  {
+    id: 'benjamin', name: 'Benjamín', home: { x: 35, z: 13.1, dir: S }, desk: desk(35, 14.1),
+    look: { skin: 0xd8a47f, hair: 0x2a2a2a, hairStyle: 'bald', top: 0x7a1f2b, bottom: 0x2b2b35, tie: 0xd4af37, mustache: true, wide: 1.05, gear: ['bowtie'] },
+    ability: { name: 'Reclutamiento', text: 'Convierte a los vigilantes cercanos en ladrones 12 s: roban por ti.', cooldown: 25, effect: { kind: 'convert', radius: 6, max: 3, seconds: 12 } },
   },
 ]
 

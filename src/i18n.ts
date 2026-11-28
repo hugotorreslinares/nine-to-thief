@@ -272,6 +272,9 @@ export const EN: Readonly<Record<string, string>> = {
   'Invisible para todos durante 2,5 s. Además roba 15 % más rápido.': 'Invisible to everyone for 2.5 s. Also steals 15% faster.',
   // carrusel de personajes (menú)
   'Luna llena': 'Full moon',
+  'Reclutamiento': 'Recruitment',
+  'Convierte a los vigilantes cercanos en ladrones 12 s: roban por ti.': 'Turns nearby guards into thieves for 12 s: they steal for you.',
+  'Tienes ayudantes: {n}': 'You have helpers: {n}',
   'Devora a un vigilante cercano, pero solo si nadie más lo ve.': 'Devours a nearby guard, but only if nobody else is watching.',
   '¡{name} desapareció!': '{name} vanished!',
   'No hay nadie al alcance': 'Nobody within reach',
