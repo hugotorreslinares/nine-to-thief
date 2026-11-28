@@ -152,7 +152,7 @@ export const CHARACTERS: readonly Character[] = [
   {
     id: 'lobo', name: 'Lobo', home: { x: 37, z: 12.4, dir: -S }, desk: desk(37, 11.4),
     look: { skin: 0x9a8573, hair: 0x4b4b55, hairStyle: 'long', top: 0x3a3a44, bottom: 0x23232b, beard: true, scale: 1.1, wide: 1.1, gear: ['wolf'] },
-    ability: { name: 'Luna llena', text: 'Devora a un vigilante cercano, pero solo si nadie más lo ve.', cooldown: 20, effect: { kind: 'devour', range: 1.8 } },
+    ability: { name: 'Luna llena', text: 'Devora a un vigilante cercano, pero solo si nadie más lo ve.', cooldown: 15, effect: { kind: 'devour', range: 2.2 } },
   },
 ]
 
