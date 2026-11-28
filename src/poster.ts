@@ -70,7 +70,11 @@ function finish(c: Character): string {
   const lips = look.skirt ? `<path d="M85 147 Q100 134 115 147" fill="none" stroke="#c2415a" stroke-width="5" opacity="0.75" stroke-linecap="round"/>` : ''
   const nostrils = `<ellipse cx="97" cy="125" rx="1.8" ry="1.2" fill="#000" opacity="0.5" stroke="none"/><ellipse cx="105" cy="126" rx="1.8" ry="1.2" fill="#000" opacity="0.5" stroke="none"/>`
   const strands = look.hairStyle === 'bald' ? '' : `<path d="M62 76 Q68 50 86 38 M78 64 Q86 46 102 36 M100 60 Q112 44 126 40 M120 62 Q130 50 138 56" fill="none" stroke="${shade(look.hair, -0.4)}" stroke-width="1.6" opacity="0.55" stroke-linecap="round"/>`
-  return `${strands}${eyes}${brows}${lashes}${lips}${nostrils}`
+  const dark = shade(look.skin, -0.3)
+  const lids = `<path d="M71 100 Q82 90 93 100 M107 100 Q118 90 129 100" fill="none" stroke-width="4.2"/><path d="M74 93 Q82 87 90 93 M110 93 Q118 87 126 93" fill="none" stroke-width="1.6" opacity="0.6"/><path d="M74 108 Q82 112 90 108 M110 108 Q118 112 126 108" fill="none" stroke-width="1.5" opacity="0.5"/>`
+  const hatch = `<path d="M119 148 l-6 8 M123 143 l-6 8 M127 137 l-6 8 M130 130 l-5 8 M133 122 l-5 7" fill="none" stroke-width="1.4" opacity="0.5"/><path d="M63 102 l-5 2 M63 107 l-5 3 M137 102 l5 2 M137 107 l5 3" fill="none" stroke-width="1.3" opacity="0.35"/>`
+  const gloss = `<path d="M72 64 Q84 55 98 53 M68 118 Q71 112 77 109 M92 162 Q100 166 108 162" fill="none" stroke="#fff" stroke-width="3.2" opacity="0.5" stroke-linecap="round"/><circle cx="99" cy="121" r="2.4" fill="#fff" opacity="0.6" stroke="none"/><path d="M109 118 q5 4 3 10" fill="none" stroke="${dark}" stroke-width="1.6" opacity="0.5"/>`
+  return `${strands}${eyes}${lids}${brows}${hatch}${gloss}${lashes}${lips}${nostrils}`
 }
 
 /** Rasgos propios de cada personaje: `face` va sobre la cara (bajo ojos y boca), `over` encima de todo y `neck` junto al cuello. */
@@ -171,7 +175,7 @@ function hair(look: Look, detail: Detail, layer: 'back' | 'front'): string {
   }
 }
 
-const STROKE = 'stroke="#111" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"'
+const STROKE = 'stroke="#111" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"'
 
 /** Capas del busto en un lienzo de 200 × 260, comunes al póster y a la foto de fichaje. */
 function layers(c: Character): { readonly behind: string; readonly head: string; readonly over: string; readonly sad: boolean } {
@@ -241,7 +245,14 @@ function layers(c: Character): { readonly behind: string; readonly head: string;
     <path d="M66 176 Q100 200 134 176 L138 194 Q100 220 62 194Z" fill="#e11d48"/>
     <path d="M80 192 L84 200 M96 197 L98 205 M112 197 L114 205 M126 190 L128 198" fill="none" stroke="#fda4af" stroke-width="2"/>
     <path d="M104 204 L128 202 L132 236 L108 240Z" fill="#be123c"/>` : ''
-  const sheen = look.hairStyle === 'bald' ? '' : `<path d="M72 52 Q100 40 128 52" fill="none" stroke="${shade(look.hair, 0.4)}" stroke-width="4" opacity="0.5" stroke-linecap="round"/>
+  const dark = shade(look.skin, -0.3)
+  const shading = `
+    <path d="M130 60 Q151 108 121 158 Q112 166 103 169 Q133 140 137 100 Q138 80 130 60Z" fill="#000" opacity="0.16" stroke="none"/>
+    <path d="M62 78 Q100 62 138 78 L138 84 Q100 72 62 84Z" fill="${dark}" opacity="0.55" stroke="none"/>
+    <path d="M101 105 L105 126 L111 123 L107 106Z" fill="${dark}" opacity="0.7" stroke="none"/>
+    <path d="M86 158 Q100 166 114 158 Q100 174 86 158Z" fill="${dark}" opacity="0.5" stroke="none"/>
+    <path d="M73 112 Q82 118 91 112 L91 115 Q82 122 73 115Z M109 112 Q118 118 127 112 L127 115 Q118 122 109 115Z" fill="${dark}" opacity="0.4" stroke="none"/>`
+  const sheen = look.hairStyle === 'bald' ? '' : `<path d="M72 52 Q100 40 128 52" fill="none" stroke="${shade(look.hair, 0.55)}" stroke-width="5" opacity="0.6" stroke-linecap="round"/>
       <path d="M66 64 Q72 56 82 52" fill="none" stroke="${shade(look.hair, 0.4)}" stroke-width="2.5" opacity="0.4" stroke-linecap="round"/>`
   return {
     behind: `
@@ -252,11 +263,13 @@ function layers(c: Character): { readonly behind: string; readonly head: string;
       <path d="M84 160 Q100 178 116 160 L116 184 Q100 194 84 184Z" fill="#000" opacity="0.16" stroke="none"/>
       <ellipse cx="56" cy="104" rx="7" ry="12" fill="${skin}"/>
       <ellipse cx="144" cy="104" rx="7" ry="12" fill="${skin}"/>
+      <ellipse cx="56" cy="105" rx="3" ry="7" fill="${dark}" opacity="0.45" stroke="none"/><ellipse cx="144" cy="105" rx="3" ry="7" fill="${dark}" opacity="0.45" stroke="none"/>
       <path d="M54 99 Q58 106 55 113 M146 99 Q142 106 145 113" fill="none" stroke-width="1.6" opacity="0.5"/>
       ${earrings}`,
     head: `
       <path d="${HEAD}" fill="${skin}"/>
       <path d="M100 40 Q142 40 142 95 Q142 140 120 160 Q110 167 100 169Z" fill="#000" opacity="0.2" stroke="none"/>
+      ${shading}
       ${beard}
       ${hair(look, detail, 'front')}
       ${sheen}
